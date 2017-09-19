@@ -52,6 +52,48 @@ type DocumentDefinition struct {
 	Facets []string
 }
 
+func ClearIndex(ctx context.Context, name string) error {
+	index, err := search.Open(name)
+	if err != nil {
+		return err
+	}
+
+	var ids []string
+	t := index.List(ctx, &search.ListOptions{IDsOnly: true})
+	for {
+		var emp interface{}
+		id, err := t.Next(emp)
+		if err == search.Done {
+			break // No further entities match the query.
+		}
+		if err != nil {
+			return err
+		}
+		// Do something with Person p and Key k
+		ids = append(ids, id)
+	}
+
+	var divided [][]string
+	chunkSize := 100
+	for i := 0; i < len(ids); i += chunkSize {
+		end := i + chunkSize
+
+		if end > len(ids) {
+			end = len(ids)
+		}
+
+		divided = append(divided, ids[i:end])
+	}
+
+	for _, chunk := range divided {
+		if err = index.DeleteMulti(ctx, chunk); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (dd *DocumentDefinition) Put(ctx context.Context, id string, data map[string]interface{}) error {
 	assembled := dd.Assemble(data)
 
@@ -59,6 +101,7 @@ func (dd *DocumentDefinition) Put(ctx context.Context, id string, data map[strin
 	if err != nil {
 		return err
 	}
+
 	_, err = index.Put(ctx, id, assembled)
 	return err
 }
@@ -93,7 +136,6 @@ func (dd *DocumentDefinition) Assemble(data map[string]interface{}) *Document {
 		var val interface{} = data[name]
 
 		if val != nil {
-
 
 			if valArr, ok := val.([]interface{}); ok {
 				for _, val := range valArr {
