@@ -59,6 +59,7 @@ func ClearIndex(ctx context.Context, name string) error {
 	}
 
 	var ids []string
+
 	t := index.List(ctx, &search.ListOptions{IDsOnly: true})
 	for {
 		var emp interface{}
@@ -106,8 +107,8 @@ func (dd *DocumentDefinition) Put(ctx context.Context, id string, data map[strin
 	return err
 }
 
-func (dd *DocumentDefinition) Assemble(data map[string]interface{}) *Document {
-	var document = new(Document)
+func (dd *DocumentDefinition) Assemble(data map[string]interface{}) Document {
+	var document = Document{}
 
 	for _, name := range dd.Fields {
 		var val interface{} = data[name]
