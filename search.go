@@ -1,0 +1,125 @@
+package sdk
+
+import (
+	"golang.org/x/net/context"
+	"google.golang.org/appengine/search"
+)
+
+type Document struct {
+	Fields []search.Field
+	Facets []search.Facet
+	Value  map[string]interface{}
+}
+
+func (d *Document) AddFields(f ...search.Field) error {
+	d.Fields = append(d.Fields, f...)
+	return nil
+}
+
+func (d *Document) AddFacets(f ...search.Facet) error {
+	d.Facets = append(d.Facets, f...)
+	return nil
+}
+
+func (d *Document) Load(fields []search.Field, meta *search.DocumentMetadata) error {
+	d.Fields = append(d.Fields, fields...)
+	d.Facets = append(d.Facets, meta.Facets...)
+
+	d.Value = map[string]interface{}{}
+	for _, val := range d.Fields {
+		d.Value[val.Name] = val.Value
+	}
+
+	return nil
+}
+
+func (d *Document) Save() ([]search.Field, *search.DocumentMetadata, error) {
+	meta := &search.DocumentMetadata{
+		Facets: d.Facets,
+	}
+
+	d.Value = map[string]interface{}{}
+	for _, val := range d.Fields {
+		d.Value[val.Name] = val.Value
+	}
+
+	return d.Fields, meta, nil
+}
+
+type DocumentDefinition struct {
+	Name   string
+	Fields []string
+	Facets []string
+}
+
+func (dd *DocumentDefinition) Put(ctx context.Context, id string, data map[string]interface{}) error {
+	assembled := dd.Assemble(data)
+
+	index, err := search.Open(dd.Name)
+	if err != nil {
+		return err
+	}
+	_, err = index.Put(ctx, id, assembled)
+	return err
+}
+
+func (dd *DocumentDefinition) Assemble(data map[string]interface{}) *Document {
+	var document = new(Document)
+
+	for _, name := range dd.Fields {
+		var val interface{} = data[name]
+
+		if val != nil {
+
+			if valArr, ok := val.([]interface{}); ok {
+				for _, val := range valArr {
+					var f = search.Field{
+						Name:  name,
+						Value: val,
+					}
+					document.AddFields(f)
+				}
+			} else {
+				var f = search.Field{
+					Name:  name,
+					Value: val,
+				}
+				document.AddFields(f)
+			}
+		}
+	}
+
+	for _, name := range dd.Facets {
+		var val interface{} = data[name]
+
+		if val != nil {
+
+
+			if valArr, ok := val.([]interface{}); ok {
+				for _, val := range valArr {
+					if valStr, ok := val.(string); ok {
+						val = search.Atom(valStr)
+					}
+
+					var f = search.Facet{
+						Name:  name,
+						Value: val,
+					}
+					document.AddFacets(f)
+				}
+			} else {
+				if valStr, ok := val.(string); ok {
+					val = search.Atom(valStr)
+				}
+
+				var f = search.Facet{
+					Name:  name,
+					Value: val,
+				}
+				document.AddFacets(f)
+			}
+		}
+	}
+
+	return document
+}
