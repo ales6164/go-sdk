@@ -103,7 +103,7 @@ func (dd *DocumentDefinition) Put(ctx context.Context, id string, data map[strin
 		return err
 	}
 
-	_, err = index.Put(ctx, id, assembled)
+	_, err = index.Put(ctx, id, &assembled)
 	return err
 }
 
