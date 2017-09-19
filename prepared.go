@@ -274,7 +274,7 @@ func (e *PreparedEntity) GetGroupedOutputData(list datastore.PropertyList) map[s
 						groupField.LastPropCount += 1
 					}
 
-					if len(groupField.Items) - 1 < groupField.LastPropCount {
+					if len(groupField.Items)-1 < groupField.LastPropCount {
 						groupField.Items = append(groupField.Items, map[string]interface{}{})
 					}
 
@@ -408,8 +408,13 @@ func (e *PreparedEntity) FromMap(c Context, dataMap map[string]interface{}, chec
 	var key *datastore.Key
 	var err error
 	var dataObject = &DataObject{
-		Input:  e.Input,
+		Input:  map[string]interface{}{},
 		Output: e.Output,
+	}
+
+	// copy values
+	for key, value := range e.Input {
+		dataObject.Input[key] = value
 	}
 
 	// append ready fields
@@ -447,8 +452,13 @@ func (e *PreparedEntity) FromForm(c Context, checkIfRequired bool) (context.Cont
 	var key *datastore.Key
 	var err error
 	var dataObject = &DataObject{
-		Input:  e.Input,
+		Input:  map[string]interface{}{},
 		Output: e.Output,
+	}
+
+	// copy values
+	for key, value := range e.Input {
+		dataObject.Input[key] = value
 	}
 
 	// append ready fields
