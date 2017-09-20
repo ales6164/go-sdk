@@ -555,7 +555,7 @@ func (e *PreparedEntity) prepare(c Context, dataObj *DataObject, check bool) (co
 				return ctx, err
 			}
 
-			return appCtx, Unauthorized.Params("invalid token  (#104)")
+			return appCtx, nil
 		case NoNamespace:
 			return ctx, nil
 		}
@@ -604,8 +604,7 @@ func (e *PreparedEntity) prepare(c Context, dataObj *DataObject, check bool) (co
 			return ctx, key, err
 		}
 		key = datastore.NewKey(ctx, e.Key.Kind, u, 0, parentKey)
-	}
-	if e.Key.IsRequiredFromInput {
+	} else if e.Key.IsRequiredFromInput {
 		//todo:
 		if probablyKeyId, ok := dataObj.Input[e.Key.FromField]; ok {
 			// check if is string or int64
@@ -621,6 +620,10 @@ func (e *PreparedEntity) prepare(c Context, dataObj *DataObject, check bool) (co
 		}
 	} else {
 		key = e.ParentKey.GetKey(ctx, e.Key.Kind, parentKey)
+	}
+
+	if key == nil {
+		key = datastore.NewIncompleteKey(ctx, e.Key.Kind, parentKey)
 	}
 
 	return ctx, key, nil
