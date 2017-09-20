@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"github.com/gorilla/sessions"
 	gcontext"github.com/gorilla/context"
-	"github.com/asaskevich/govalidator"
 	"github.com/dgrijalva/jwt-go"
 )
 
