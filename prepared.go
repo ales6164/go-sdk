@@ -234,12 +234,13 @@ func (e *PreparedEntity) GetOutputData(list datastore.PropertyList) map[string]i
 	return data
 }
 
+/*
 type GroupField struct {
 	Count         int                      `json:"count"`
 	LastPropCount int                      `json:"-"`
 	LastProp      string                   `json:"-"`
 	Items         []map[string]interface{} `json:"items"`
-}
+}*/
 
 func (e *PreparedEntity) GetGroupedOutputData(list datastore.PropertyList) map[string]interface{} {
 	var data = map[string]interface{}{}
@@ -260,26 +261,32 @@ func (e *PreparedEntity) GetGroupedOutputData(list datastore.PropertyList) map[s
 				if isGrouped {
 
 					if _, ok := data[field.GroupName]; !ok {
-						data[field.GroupName] = GroupField{
-							LastPropCount: 0,
+						data[field.GroupName] = map[string]interface{}{
+							"LastPropCount": 0,
+							"LastProp":      "",
+							"count":         0,
+							"items":         []map[string]interface{}{},
 						}
 					}
 
-					var groupField GroupField = data[field.GroupName].(GroupField)
+					var groupField map[string]interface{} = data[field.GroupName].(map[string]interface{})
 
-					if groupField.LastProp != name {
-						groupField.LastPropCount = 0
-						groupField.LastProp = name
+					if groupField["LastProp"] != name {
+						groupField["LastPropCount"] = 0
+						groupField["LastProp"] = name
 					} else {
-						groupField.LastPropCount += 1
+						groupField["LastPropCount"] = groupField["LastPropCount"].(int) + 1
 					}
 
-					if len(groupField.Items)-1 < groupField.LastPropCount {
-						groupField.Items = append(groupField.Items, map[string]interface{}{})
+					if len(groupField["items"].([]map[string]interface{}))-1 < groupField["LastPropCount"].(int) {
+						groupField["items"] = append(groupField["items"].([]map[string]interface{}), map[string]interface{}{})
 					}
 
-					groupField.Items[groupField.LastPropCount][name] = prop.Value
-					groupField.Count = len(groupField.Items)
+					groupField["items"].([]map[string]interface{})[groupField["LastPropCount"].(int)][name] = prop.Value
+					groupField["count"] = len(groupField["items"].([]map[string]interface{}))
+
+					/*delete(groupField, "LastPropCount")
+					delete(groupField, "LastProp")*/
 
 					data[field.GroupName] = groupField
 				} else {
@@ -569,6 +576,7 @@ func (e *PreparedEntity) prepare(c Context, dataObj *DataObject, check bool) (co
 		if err != nil {
 			return ctx, key, err
 		}
+
 		if e.ParentKey.FromToken {
 			u, err := getUsername()
 			if err != nil && err != GuestAccessRequest {
@@ -589,7 +597,9 @@ func (e *PreparedEntity) prepare(c Context, dataObj *DataObject, check bool) (co
 			} else {
 				return ctx, key, NoIdFieldValue.Params(e.ParentKey.FromField)
 			}
-		} else {
+		}
+
+		if !e.ParentKey.FromToken && !e.ParentKey.IsRequiredFromInput {
 			parentKey = e.ParentKey.GetKey(parentKeyNsCtx, e.ParentKey.Kind, nil)
 		}
 	}

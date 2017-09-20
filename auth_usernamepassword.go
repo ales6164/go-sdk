@@ -105,6 +105,20 @@ func init() {
 	userEntity = PrepareEntity(userEnt)
 }
 
+func GetUserProfile(r *http.Request) (map[string]interface{}, error) {
+	ctx, key, d, err := userEntity.FromForm(NewContext(r), false)
+	if err != nil {
+		return d.Input, err
+	}
+
+	err = Get(ctx, key, &d.Output)
+	if err != nil {
+		return d.Input, err
+	}
+
+	return userEntity.GetOutputData(d.Output), nil
+}
+
 func (a *SDK) CheckToken(w http.ResponseWriter, r *http.Request) {
 	_, ok := GetUser(r)
 	if ok {

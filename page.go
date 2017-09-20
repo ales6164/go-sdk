@@ -25,8 +25,20 @@ func NewPage(path string) *Page {
 	}
 }
 
+func (a *SDK) HandlePage(path string, page *Page, context ...interface{}) {
+	a.Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		page.Render(w, context...)
+	})
+}
+
+func (a *SDK) HandlePageWithLayout(path string, page *Page, layout *Page, context ...interface{}) {
+	a.Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		page.RenderInLayout(w, layout, context...)
+	})
+}
+
 func (p *Page) RenderInLayout(w http.ResponseWriter, layout *Page, context ...interface{}) {
-	w.Header().Set("Content-Type", "text/html charset=utf-8")
+	w.Header().Set("Content-Type", "text/html")
 	context = append(context, map[string]string{"page": p.Name})
 	buf := p.template.RenderInLayout(layout.template, context...)
 	buf.WriteTo(w)
@@ -35,7 +47,7 @@ func (p *Page) RenderInLayout(w http.ResponseWriter, layout *Page, context ...in
 }
 
 func (p *Page) Render(w http.ResponseWriter, context ...interface{}) {
-	w.Header().Set("Content-Type", "text/html charset=utf-8")
+	w.Header().Set("Content-Type", "text/html")
 	context = append(context, map[string]string{"page": p.Name})
 	buf := p.template.Render(context...)
 	buf.WriteTo(w)
