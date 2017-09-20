@@ -152,7 +152,7 @@ func (a *SDK) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 func (a *SDK) Register(ctx Context) (string, map[string]interface{}, error) {
 	var id_token string
 
-	engineCtx, key, data, err := userEntity.FromForm(ctx, true)
+	engineCtx, key, data, err := userEntity.FromForm(ctx, false)
 	if err != nil {
 		return id_token, data.Input, err
 	}
@@ -180,7 +180,7 @@ func (a *SDK) Register(ctx Context) (string, map[string]interface{}, error) {
 func (a *SDK) Login(ctx Context) (string, map[string]interface{}, error) {
 	var id_token string
 
-	engineCtx, key, d, err := userEntity.FromForm(ctx, true)
+	engineCtx, key, d, err := userEntity.FromForm(ctx, false)
 	if err != nil {
 		return id_token, d.Input, err
 	}

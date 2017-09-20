@@ -604,7 +604,8 @@ func (e *PreparedEntity) prepare(c Context, dataObj *DataObject, check bool) (co
 			return ctx, key, err
 		}
 		key = datastore.NewKey(ctx, e.Key.Kind, u, 0, parentKey)
-	} else if e.Key.IsRequiredFromInput {
+	}
+	if e.Key.IsRequiredFromInput {
 		//todo:
 		if probablyKeyId, ok := dataObj.Input[e.Key.FromField]; ok {
 			// check if is string or int64
