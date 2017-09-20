@@ -536,7 +536,7 @@ func (e *PreparedEntity) prepare(c Context, dataObj *DataObject, check bool) (co
 					hasResolvedToken = true
 					return username, nil
 				}
-				return username, Unauthorized.Params("invalid token")
+				return username, Unauthorized.Params("invalid token  (#102)")
 			}
 		}
 		hasAuthorizationErr = true
@@ -555,7 +555,7 @@ func (e *PreparedEntity) prepare(c Context, dataObj *DataObject, check bool) (co
 				return ctx, err
 			}
 
-			return appCtx, Unauthorized.Params("invalid token")
+			return appCtx, Unauthorized.Params("invalid token  (#104)")
 		case NoNamespace:
 			return ctx, nil
 		}
