@@ -109,9 +109,7 @@ func GetUser(r *http.Request) (string, bool) {
 		if email, ok = claims["sub"].(string); !ok {
 			return email, false
 		}
-		if govalidator.IsEmail(email) && len(email) > 5 {
-			return email, true
-		}
+		return email, true
 	}
 
 	return email, false
