@@ -5,107 +5,110 @@ import (
 	"time"
 	"net/http"
 	"errors"
+	"github.com/google/uuid"
 )
 
 var userEntity *PreparedEntity
 
-type fun func(func()) interface{}
-
 func init() {
-	userEnt := NewEntity("user", []*Field{
-		{
-			Name: "created",
-			WithValueFunc: func() interface{} {
-				return time.Now()
+	userEntity = NewEntity("user",
+		[]Field{
+			{
+				Name: "created",
+				WithValueFunc: func() interface{} {
+					return time.Now()
+				},
 			},
-		},
-		{
-			Name:       "email",
-			IsRequired: true,
-			Validator: func(value interface{}) bool {
-				return govalidator.IsEmail(value.(string))
+			{
+				Name:
+				"email",
+				IsRequired: true,
+				Validator: func(value interface{}) bool {
+					return govalidator.IsEmail(value.(string))
+				},
 			},
-		},
-		{
-			Name:       "password",
-			IsRequired: true,
-			NoIndex:    true,
-			Validator: func(value interface{}) bool {
-				return govalidator.IsByteLength(value.(string), 6, 128)
+			{
+				Name: "namespace",
+				WithValueFunc: func() interface{} {
+					return uuid.New().String()
+				},
 			},
-			TransformFunc: FuncHashTransform,
-		},
-		{
-			Name:       "firstName",
-			IsRequired: true,
-			Validator: func(value interface{}) bool {
-				return govalidator.IsByteLength(value.(string), 1, 64)
+			{
+				Name:       "password",
+				IsRequired: true,
+				NoIndex:    true,
+				Validator: func(value interface{}) bool {
+					return govalidator.IsByteLength(value.(string), 6, 128)
+				},
+				TransformFunc: FuncHashTransform,
 			},
-		},
-		{
-			Name:       "lastName",
-			IsRequired: true,
-			Validator: func(value interface{}) bool {
-				return govalidator.IsByteLength(value.(string), 1, 64)
+			{
+				Name:
+				"firstName",
+				IsRequired: true,
+				Validator: func(value interface{}) bool {
+					return govalidator.IsByteLength(value.(string), 1, 64)
+				},
 			},
-		},
-		{
-			Name: "companyName",
-			Validator: func(value interface{}) bool {
-				return govalidator.IsByteLength(value.(string), 0, 64)
+			{
+				Name:
+				"lastName",
+				IsRequired: true,
+				Validator: func(value interface{}) bool {
+					return govalidator.IsByteLength(value.(string), 1, 64)
+				},
 			},
-		},
-		{
-			Name: "companyId",
-			Validator: func(value interface{}) bool {
-				return govalidator.IsByteLength(value.(string), 0, 8)
+			{
+				Name: "companyName",
+				Validator: func(value interface{}) bool {
+					return govalidator.IsByteLength(value.(string), 0, 64)
+				},
 			},
-		},
-		{
-			Name:       "address",
-			IsRequired: true,
-			Validator: func(value interface{}) bool {
-				return govalidator.IsByteLength(value.(string), 1, 128)
+			{
+				Name: "companyId",
+				Validator: func(value interface{}) bool {
+					return govalidator.IsByteLength(value.(string), 0, 8)
+				},
 			},
-		},
-		{
-			Name:       "city",
-			IsRequired: true,
-			Validator: func(value interface{}) bool {
-				return govalidator.IsByteLength(value.(string), 1, 128)
+			{
+				Name:       "address",
+				IsRequired: true,
+				Validator: func(value interface{}) bool {
+					return govalidator.IsByteLength(value.(string), 1, 128)
+				},
 			},
-		},
-		{
-			Name:       "zip",
-			IsRequired: true,
-			Validator: func(value interface{}) bool {
-				return govalidator.IsByteLength(value.(string), 1, 12) && govalidator.IsNumeric(value.(string))
+			{
+				Name:       "city",
+				IsRequired: true,
+				Validator: func(value interface{}) bool {
+					return govalidator.IsByteLength(value.(string), 1, 128)
+				},
 			},
-		},
-		{
-			Name: "phone",
-		},
-	})
-	userEnt.Rules = Rules{
-		GuestAdd:  true,
-		GuestRead: true,
-		UserEdit:  true,
-	}
-	userEntity = PrepareEntity(userEnt)
+			{
+				Name:       "zip",
+				IsRequired: true,
+				Validator: func(value interface{}) bool {
+					return govalidator.IsByteLength(value.(string), 1, 12) && govalidator.IsNumeric(value.(string))
+				},
+			},
+			{
+				Name: "phone",
+			},
+		}).Prepare()
 }
 
 func GetUserProfile(r *http.Request) (map[string]interface{}, error) {
-	ctx := NewContext(r)
-	if !ctx.isAuthenticated {
+	ctx := NewContext(r).WithScopes(ScopeGet)
+	if !ctx.IsAuthenticated {
 		return nil, ErrNotAuthenticated
 	}
 
-	ctx, key, err := userEntity.NewKey(ctx, ctx.username, false)
+	ctx, key, err := userEntity.NewKey(ctx, ctx.User, false)
 	if err != nil {
 		return nil, err
 	}
 
-	ps, err := userEntity.Read(ctx, key)
+	ps, err := userEntity.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -117,26 +120,20 @@ func GetUserProfile(r *http.Request) (map[string]interface{}, error) {
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	// todo: wtf? fix
-	r.FormValue("ada")
-
-	ctx := NewContext(r)
+	ctx := NewContext(r).WithScopes(ScopeGet)
 	id_token, profile, err := Login(ctx)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusUnauthorized)
 		return
 	}
 
-	ctx.token = id_token
+	ctx.Token = id_token
 
 	ctx.Print(w, profile)
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := NewContext(r)
-
-	// todo: wtf? fix
-	r.FormValue("ada")
+	ctx := NewContext(r).WithScopes(ScopeAdd)
 
 	id_token, profile, err := Register(ctx)
 	if err != nil {
@@ -144,7 +141,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx.token = id_token
+	ctx.Token = id_token
 
 	ctx.Print(w, profile)
 }
@@ -156,7 +153,7 @@ var (
 func Register(ctx Context) (Token, map[string]interface{}, error) {
 	var id_token Token
 
-	if ctx.isAuthenticated {
+	if ctx.IsAuthenticated {
 		return id_token, nil, ErrAlreadyAuthenticated
 	}
 
@@ -182,14 +179,14 @@ func Register(ctx Context) (Token, map[string]interface{}, error) {
 	d := userEntity.GetOutputData(data.Output)
 	delete(d, "password")
 
-	id_token, err = NewToken(d["email"].(string))
+	id_token, err = NewToken(d["namespace"].(string), d["email"].(string))
 	return id_token, d, err
 }
 
 func Login(ctx Context) (Token, map[string]interface{}, error) {
 	var id_token Token
 
-	if ctx.isAuthenticated {
+	if ctx.IsAuthenticated {
 		return id_token, nil, ErrAlreadyAuthenticated
 	}
 
@@ -203,7 +200,7 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, err
 	}
 
-	ps, err := userEntity.Read(ctx, key)
+	ps, err := userEntity.Get(ctx, key)
 	if err != nil {
 		return id_token, nil, err
 	}
@@ -215,7 +212,7 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 	}
 	delete(d, "password")
 
-	id_token, err = NewToken(d["email"].(string))
+	id_token, err = NewToken(d["namespace"].(string), d["email"].(string))
 	return id_token, d, err
 }
 

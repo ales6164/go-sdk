@@ -6,20 +6,20 @@ import (
 	"fmt"
 )
 
-func PrintError(w http.ResponseWriter, err error, code int) {
+func printError(w http.ResponseWriter, err error, code int) {
 	write(w, Token{}, code, err.Error(), nil)
 }
 
-func PrintData(w http.ResponseWriter, response interface{}) {
+func printData(w http.ResponseWriter, response interface{}) {
 	write(w, Token{}, http.StatusOK, "", response)
 }
 
 func (c *Context) Print(w http.ResponseWriter, response interface{}) {
-	write(w, c.token, http.StatusOK, "", response)
+	write(w, c.Token, http.StatusOK, "", response)
 }
 
 func (c *Context) PrintError(w http.ResponseWriter, err error, code int) {
-	write(w, c.token, code, err.Error(), nil)
+	write(w, c.Token, code, err.Error(), nil)
 }
 
 func write(w http.ResponseWriter, token Token, status int, message string, response interface{}) {

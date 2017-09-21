@@ -10,31 +10,53 @@ import (
 )
 
 type Context struct {
-	r *http.Request
+	r      *http.Request
+	scopes map[Scope]bool
+	err    error
 
-	ctx context.Context
-
-	username        string
-	namespace       string
-	isAuthenticated bool
-	token           Token
-	err             error
+	Context         context.Context
+	User            string
+	Namespace       string
+	IsAuthenticated bool
+	Token           Token
 }
 
 func NewContext(r *http.Request) Context {
-	isAuthenticated, username, renewedToken, err := getUser(r)
+	isAuthenticated, namespace, username, renewedToken, err := getUser(r)
 	return Context{
 		r:               r,
-		ctx:             appengine.NewContext(r),
-		isAuthenticated: isAuthenticated,
-		username:        username,
-		token:           renewedToken,
+		Context:         appengine.NewContext(r),
+		IsAuthenticated: isAuthenticated,
+		Namespace:       namespace,
+		User:            username,
+		Token:           renewedToken,
 		err:             err,
 	}
 }
 
-func getUser(r *http.Request) (bool, string, Token, error) {
+func (c Context) HasScope(scope Scope) bool {
+	return c.scopes[scope]
+}
+
+func (c Context) WithScopes(scopes ...Scope) Context {
+	c.scopes = map[Scope]bool{}
+	for _, scope := range scopes {
+		c.scopes[scope] = true
+	}
+	return c
+}
+
+func (c Context) WithNamespace()  {
+	if c.IsAuthenticated && len(c.Namespace) != 0 {
+		c.Context, c.err = appengine.Namespace(c.Context, c.Namespace)
+	} else {
+		c.err = ErrNotAuthenticated
+	}
+}
+
+func getUser(r *http.Request) (bool, string, string, Token, error) {
 	var isAuthenticated bool
+	var namespace string
 	var username string
 	var renewedToken Token
 	var err error
@@ -48,18 +70,23 @@ func getUser(r *http.Request) (bool, string, Token, error) {
 			err = claims.Valid()
 			if err == nil {
 				if username, ok := claims["sub"].(string); ok {
-					return true, username, renewedToken, err
+					if namespace, ok := claims["namespace"].(string); ok {
+						return true, namespace, username, renewedToken, err
+					}
 				}
+				return isAuthenticated, namespace, username, renewedToken, ErrIllegalAction
 			} else if err == jwt.ValidationError(jwt.ValidationErrorExpired) {
 				if exp, ok := claims["exp"].(int64); ok {
 					// check if it's less than a week old
 					if time.Now().Unix()-exp < time.Now().Add(time.Hour * 24 * 7).Unix() {
 						if username, ok := claims["sub"].(string); ok {
-							renewedToken, err = NewToken(username)
-							if err != nil {
-								return isAuthenticated, username, renewedToken, err
+							if namespace, ok := claims["namespace"].(string); ok {
+								renewedToken, err = NewToken(namespace, username)
+								if err != nil {
+									return isAuthenticated, namespace, username, renewedToken, err
+								}
+								return true, namespace, username, renewedToken, err
 							}
-							return true, username, renewedToken, err
 						}
 					}
 				}
@@ -67,5 +94,5 @@ func getUser(r *http.Request) (bool, string, Token, error) {
 		}
 	}
 
-	return isAuthenticated, username, renewedToken, err
+	return isAuthenticated, namespace, username, renewedToken, err
 }

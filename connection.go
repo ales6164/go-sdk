@@ -12,31 +12,32 @@ var (
 	ErrKeyIncomplete    = errors.New("key incomplete")
 )
 
-func isAuthorized(ctx Context, key *datastore.Key, guestRule bool, userRule bool) bool {
-	if len(key.Namespace()) > 0 {
-		if ctx.namespace == key.Namespace() {
-			return userRule
+// don't allow user to edit other user's data
+func isAuthorized(ctx Context, key *datastore.Key, hasScope bool) bool {
+	if hasScope && len(key.Namespace()) != 0 {
+		if ctx.Namespace == key.Namespace() {
+			return true
 		}
 		return false
 	}
 
-	return guestRule
+	return hasScope
 }
 
-func (e *PreparedEntity) Read(ctx Context, key *datastore.Key) (datastore.PropertyList, error) {
+func (e *PreparedEntity) Get(ctx Context, key *datastore.Key) (datastore.PropertyList, error) {
 	var ps datastore.PropertyList
-	if isAuthorized(ctx, key, e.Entity.Rules[GuestRead], e.Entity.Rules[UserRead]) {
-		err := datastore.Get(ctx.ctx, key, &ps)
+	if isAuthorized(ctx, key, ctx.HasScope(ScopeGet)) {
+		err := datastore.Get(ctx.Context, key, &ps)
 		return ps, err
 	}
 	return ps, ErrNotAuthorized
 }
 
-func (e *PreparedEntity) Add(ctx Context, key *datastore.Key, ps datastore.PropertyList) (error) {
+func (e *PreparedEntity) Add(ctx Context, key *datastore.Key, ps datastore.PropertyList) (*datastore.Key, error) {
 	var err error
-	if isAuthorized(ctx, key, e.Entity.Rules[GuestAdd], e.Entity.Rules[UserAdd]) {
+	if isAuthorized(ctx, key, ctx.HasScope(ScopeAdd)) {
 		if !key.Incomplete() {
-			err = datastore.RunInTransaction(ctx.ctx, func(tc context.Context) error {
+			err = datastore.RunInTransaction(ctx.Context, func(tc context.Context) error {
 				var tempEnt datastore.PropertyList
 				err := datastore.Get(tc, key, &tempEnt)
 				if err != nil {
@@ -52,18 +53,18 @@ func (e *PreparedEntity) Add(ctx Context, key *datastore.Key, ps datastore.Prope
 			}, nil)
 
 		} else {
-			key, err = datastore.Put(ctx.ctx, key, &ps)
+			key, err = datastore.Put(ctx.Context, key, &ps)
 		}
-		return err
+		return key, err
 	}
-	return ErrNotAuthorized
+	return key, ErrNotAuthorized
 }
 
-func (e *PreparedEntity) Edit(ctx Context, key *datastore.Key, ps datastore.PropertyList) (error) {
+func (e *PreparedEntity) Edit(ctx Context, key *datastore.Key, ps datastore.PropertyList) (*datastore.Key, error) {
 	var err error
-	if isAuthorized(ctx, key, e.Entity.Rules[GuestEdit], e.Entity.Rules[UserEdit]) {
+	if isAuthorized(ctx, key, ctx.HasScope(ScopeEdit)) {
 		if !key.Incomplete() {
-			err = datastore.RunInTransaction(ctx.ctx, func(tc context.Context) error {
+			err = datastore.RunInTransaction(ctx.Context, func(tc context.Context) error {
 				var tempEnt datastore.PropertyList
 				err := datastore.Get(tc, key, &tempEnt)
 				if err != nil {
@@ -78,11 +79,11 @@ func (e *PreparedEntity) Edit(ctx Context, key *datastore.Key, ps datastore.Prop
 				return nil
 			}, nil)
 		} else {
-			return ErrKeyIncomplete
+			return key, ErrKeyIncomplete
 		}
-		return err
+		return key, err
 	}
-	return ErrNotAuthorized
+	return key, ErrNotAuthorized
 }
 
 func (e *PreparedEntity) GetOutputData(list datastore.PropertyList) map[string]interface{} {

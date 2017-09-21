@@ -3,6 +3,7 @@ package sdk
 import (
 	"github.com/dgrijalva/jwt-go"
 	"time"
+	"errors"
 )
 
 func newAuthMiddleware(signingKey []byte) *JWTMiddleware {
@@ -34,7 +35,15 @@ type Token struct {
 	Expires int64  `json:"expires"`
 }
 
-func NewToken(usr string) (Token, error) {
+var (
+	ErrIllegalAction = errors.New("illegal action")
+)
+
+func NewToken(ns string, usr string) (Token, error) {
+	if len(ns) == 0 && len(usr) == 0 {
+		return Token{}, ErrIllegalAction
+	}
+
 	var exp = time.Now().Add(time.Hour * 12).Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"aud": "api",
@@ -43,6 +52,7 @@ func NewToken(usr string) (Token, error) {
 		"iat": time.Now().Unix(),
 		"iss": "sdk",
 		"sub": usr,
+		"namespace": ns,
 	})
 
 	signed, err := token.SignedString(signingKey)

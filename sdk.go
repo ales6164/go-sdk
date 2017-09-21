@@ -70,13 +70,13 @@ func (a *SDK) SigningKey(key []byte) {
 func (a *SDK) EnableAuthAPI(key []byte) {
 	a.HandleFunc("/api/auth/login", LoginHandler).Methods(http.MethodPost)
 	a.HandleFunc("/api/auth/register", RegisterHandler).Methods(http.MethodPost)
-	a.HandleFunc("/api/auth", func(w http.ResponseWriter, r *http.Request){
+	a.HandleFunc("/api/auth", func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r)
 		if ctx.err != nil {
 			ctx.PrintError(w, ctx.err, http.StatusInternalServerError)
 			return
 		}
-		if ctx.isAuthenticated {
+		if ctx.IsAuthenticated {
 			ctx.Print(w, true)
 			return
 		}

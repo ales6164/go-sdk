@@ -2,31 +2,25 @@ package sdk
 
 import (
 	"fmt"
+	"google.golang.org/appengine/datastore"
 )
 
 type Ent struct {
 	Name   string
 	Fields map[string]*Field
 
-	Rules Rules
-
-	SearchIndex string // name of search index
-
 	// listener
 	/*OnWrite func(c *Conn) error
 	OnRead  func(c *Conn) error*/
 }
 
-type Rules map[Scope]bool
 type Scope string
 
 var (
-	UserRead  Scope = "user.read"
-	UserEdit  Scope = "user.edit"
-	UserAdd   Scope = "user.add"
-	GuestRead Scope = "guest.read"
-	GuestEdit Scope = "guest.edit"
-	GuestAdd  Scope = "guest.add"
+	ScopeGet    Scope = "get"
+	ScopeEdit   Scope = "edit"
+	ScopeAdd    Scope = "add"
+	ScopeDelete Scope = "delete"
 )
 
 // todo: add ALS rules: read, write, ...
@@ -83,6 +77,68 @@ var (
 	ErrFetching              = NewError("fetch: error fetching next %v")
 )
 
+func NewEntity(name string, fields []Field) *Ent {
+	var ent = &Ent{
+		Name:        name,
+	}
+
+	ent.Fields = map[string]*Field{}
+	for _, field := range fields {
+		ent.Fields[field.Name] = &field
+	}
+
+	return ent
+}
+
+func (e *Ent) Prepare() *PreparedEntity {
+	var prepared = new(PreparedEntity)
+	prepared.Entity = e
+	prepared.Ready = map[*Field]interface{}{}
+	prepared.Input = map[string]interface{}{}
+
+	for fieldName, field := range e.Fields {
+
+		if field.IsRequired {
+			prepared.RequiredFields = append(prepared.RequiredFields, fieldName)
+		}
+
+		if len(field.Json) == 0 && field.Json != NoJsonOutput {
+			field.Json = JsonOutput(fieldName)
+		}
+
+		if field.WithStaticValue != nil {
+			if field.Multiple {
+				if prepared.Input[fieldName] == nil {
+					prepared.Input[fieldName] = []interface{}{}
+				}
+				prepared.Input[fieldName] = append(prepared.Input[fieldName].([]interface{}), field.WithStaticValue)
+			} else {
+				prepared.Input[fieldName] = field.WithStaticValue
+			}
+
+			prepared.Output = append(prepared.Output, datastore.Property{
+				Name:     fieldName,
+				Value:    field.WithStaticValue,
+				NoIndex:  field.NoIndex,
+				Multiple: field.Multiple,
+			})
+		}
+
+		if field.WithValueFunc != nil {
+			if field.Multiple {
+				if prepared.Ready[field] == nil {
+					prepared.Ready[field] = []func() interface{}{}
+				}
+				prepared.Ready[field] = append(prepared.Ready[field].([]func() interface{}), field.WithValueFunc)
+			} else {
+				prepared.Ready[field] = field.WithValueFunc
+			}
+		}
+	}
+
+	return prepared
+}
+
 type Error struct {
 	s string
 	p []interface{}
@@ -99,18 +155,4 @@ func (e *Error) Params(values ...interface{}) *Error {
 
 func NewError(text string) *Error {
 	return &Error{s: text}
-}
-
-func NewEntity(name string, fields []*Field) *Ent {
-	var ent = &Ent{}
-
-	var fs = map[string]*Field{}
-	for _, field := range fields {
-		fs[field.Name] = field
-	}
-
-	ent.Name = name
-	ent.Fields = fs
-
-	return ent
 }
