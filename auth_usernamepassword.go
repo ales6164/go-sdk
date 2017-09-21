@@ -30,7 +30,6 @@ func init() {
 			Name:       "password",
 			IsRequired: true,
 			NoIndex:    true,
-			Json:       NoJsonOutput,
 			Validator: func(value interface{}) bool {
 				return govalidator.IsByteLength(value.(string), 6, 128)
 			},
@@ -87,136 +86,146 @@ func init() {
 			Name: "phone",
 		},
 	})
-	userEnt.Key = &Key{
-		Kind:          "User",
-		FromField:     "email",
-		FromToken:     true,
-		NamespaceType: NoNamespace,
-	}
 	userEnt.Rules = Rules{
 		GuestAdd:  true,
 		GuestRead: true,
 		UserEdit:  true,
 	}
-	userEnt.OnRead = func(c *Conn) error {
-		var data = c.Entity.GetData()
-		return decrypt([]byte(data["password"].([]uint8)), []byte(c.InputData["password"][0].(string)))
-	}
 	userEntity = PrepareEntity(userEnt)
 }
 
 func GetUserProfile(r *http.Request) (map[string]interface{}, error) {
-	ctx, key, d, err := userEntity.FromForm(NewContext(r), false)
-	if err != nil {
-		return d.Input, err
+	ctx := NewContext(r)
+	if !ctx.isAuthenticated {
+		return nil, ErrNotAuthenticated
 	}
 
-	err = Get(ctx, key, &d.Output)
+	ctx, key, err := userEntity.NewKey(ctx, ctx.username, false)
 	if err != nil {
-		return d.Input, err
+		return nil, err
 	}
 
-	return userEntity.GetOutputData(d.Output), nil
+	ps, err := userEntity.Read(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+
+	d := userEntity.GetOutputData(ps)
+	delete(d, "password")
+
+	return d, nil
 }
 
-func (a *SDK) CheckToken(w http.ResponseWriter, r *http.Request) {
-	_, ok := GetUser(r)
-	if ok {
-		printData(w, "valid")
-		return
-	}
-	printError(w, errors.New(""), http.StatusUnauthorized)
-}
-
-func (a *SDK) LoginHandler(w http.ResponseWriter, r *http.Request) {
+func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// todo: wtf? fix
 	r.FormValue("ada")
 
 	ctx := NewContext(r)
-	id_token, data, err := a.Login(ctx)
+	id_token, profile, err := Login(ctx)
 	if err != nil {
-		printError(w, err, http.StatusUnauthorized)
+		ctx.PrintError(w, err, http.StatusUnauthorized)
 		return
 	}
 
-	printData(w, map[string]interface{}{
-		"id_token": id_token,
-		"profile":  data,
-	})
+	ctx.token = id_token
+
+	ctx.Print(w, profile)
 }
 
-func (a *SDK) RegisterHandler(w http.ResponseWriter, r *http.Request) {
+func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := NewContext(r)
 
 	// todo: wtf? fix
 	r.FormValue("ada")
 
-	id_token, data, err := a.Register(ctx)
+	id_token, profile, err := Register(ctx)
 	if err != nil {
-		printError(w, err, http.StatusUnauthorized)
+		ctx.PrintError(w, err, http.StatusUnauthorized)
 		return
 	}
 
-	printData(w, map[string]interface{}{
-		"id_token": id_token,
-		"profile":  data,
-	})
+	ctx.token = id_token
+
+	ctx.Print(w, profile)
 }
 
-func (a *SDK) Register(ctx Context) (string, map[string]interface{}, error) {
-	var id_token string
+var (
+	ErrAlreadyAuthenticated = errors.New("already authenticated")
+)
 
-	engineCtx, key, data, err := userEntity.FromForm(ctx, false)
-	if err != nil {
-		return id_token, data.Input, err
+func Register(ctx Context) (Token, map[string]interface{}, error) {
+	var id_token Token
+
+	if ctx.isAuthenticated {
+		return id_token, nil, ErrAlreadyAuthenticated
 	}
 
-	key, err = Post(engineCtx, key, data.Output)
+	data, err := userEntity.FromForm(ctx)
+	if err != nil {
+		return id_token, nil, err
+	}
+
+	ctx, key, err := userEntity.NewKey(ctx, data.Input["email"], false)
+	if err != nil {
+		return id_token, nil, err
+	}
+
+	err = userEntity.Add(ctx, key, data.Output)
 	if err != nil {
 		if err == EntityAlreadyExists {
 			// todo
-			return id_token, data.Input, err
+			return id_token, nil, err
 		}
-		return id_token, data.Input, err
-	}
-
-	err = Get(engineCtx, key, &data.Output)
-	if err != nil {
-		return id_token, data.Input, err
+		return id_token, nil, err
 	}
 
 	d := userEntity.GetOutputData(data.Output)
+	delete(d, "password")
 
-	token, err := a.NewToken(d["email"].(string))
-	return token, d, err
+	id_token, err = NewToken(d["email"].(string))
+	return id_token, d, err
 }
 
-func (a *SDK) Login(ctx Context) (string, map[string]interface{}, error) {
-	var id_token string
+func Login(ctx Context) (Token, map[string]interface{}, error) {
+	var id_token Token
 
-	engineCtx, key, d, err := userEntity.FromForm(ctx, false)
-	if err != nil {
-		return id_token, d.Input, err
+	if ctx.isAuthenticated {
+		return id_token, nil, ErrAlreadyAuthenticated
 	}
 
-	err = Get(engineCtx, key, &d.Output)
+	data, err := userEntity.FromForm(ctx)
 	if err != nil {
-		return id_token, d.Input, err
+		return id_token, nil, err
 	}
 
-	data := userEntity.GetOutputData(d.Output)
+	ctx, key, err := userEntity.NewKey(ctx, data.Input["email"], false)
+	if err != nil {
+		return id_token, nil, err
+	}
 
-	token, err := a.NewToken(data["email"].(string))
-	return token, data, err
+	ps, err := userEntity.Read(ctx, key)
+	if err != nil {
+		return id_token, nil, err
+	}
+
+	d := userEntity.GetOutputData(ps)
+	err = decrypt([]byte(d["password"].([]uint8)), []byte(data.Input["password"].(string)))
+	if err != nil {
+		return id_token, nil, ErrNotAuthorized
+	}
+	delete(d, "password")
+
+	id_token, err = NewToken(d["email"].(string))
+	return id_token, d, err
 }
 
 func (a *SDK) UpdatePassword(ctx Context) (bool, error) {
-	var newPassword interface{}
+	/*var newPassword interface{}
 
-	/*email, ok := GetUser(ctx.r)
+	*//*email, ok := GetUser(ctx.r)
 	if !ok {
 		return false, errors.New("invalid token")
-	}*/
+	}*//*
 
 	engineCtx, key, d, err := userEntity.FromForm(ctx, false)
 	if err != nil {
@@ -242,7 +251,7 @@ func (a *SDK) UpdatePassword(ctx Context) (bool, error) {
 	_, err = Put(engineCtx, key, d.Output)
 	if err != nil {
 		return false, err
-	}
+	}*/
 
 	return true, nil
 }

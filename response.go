@@ -6,42 +6,45 @@ import (
 	"fmt"
 )
 
-type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Result  interface{} `json:"result"`
-}
-
 func PrintError(w http.ResponseWriter, err error, code int) {
-	printError(w, err, code)
+	write(w, Token{}, code, err.Error(), nil)
 }
 
-func PrintData(w http.ResponseWriter, data interface{}) {
-	printData(w, data)
+func PrintData(w http.ResponseWriter, response interface{}) {
+	write(w, Token{}, http.StatusOK, "", response)
 }
 
-func printError(w http.ResponseWriter, err error, code int) {
-	write(w, Response{
-		Code:    code,
-		Message: err.Error(),
-	}, code)
+func (c *Context) Print(w http.ResponseWriter, response interface{}) {
+	write(w, c.token, http.StatusOK, "", response)
 }
 
-func printData(w http.ResponseWriter, data interface{}) {
-	write(w, Response{
-		Code:   http.StatusOK,
-		Result: data,
-	}, http.StatusOK)
+func (c *Context) PrintError(w http.ResponseWriter, err error, code int) {
+	write(w, c.token, code, err.Error(), nil)
 }
 
-func write(w http.ResponseWriter, result Response, status int) {
+func write(w http.ResponseWriter, token Token, status int, message string, response interface{}) {
+	var out = map[string]interface{}{
+		"status": status,
+	}
+
+	if len(token.ID) != 0 {
+		out["token"] = token
+	}
+
+	if len(message) > 0 {
+		out["message"] = message
+	}
+
+	if response != nil {
+		out["result"] = response
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(result)
+	err := json.NewEncoder(w).Encode(out)
 	if err != nil {
-		fmt.Fprint(w, Response{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
+		fmt.Fprint(w, map[string]interface{}{
+			"status":  http.StatusInternalServerError,
+			"message": err.Error(),
 		})
 	}
-	w.WriteHeader(http.StatusOK)
 }

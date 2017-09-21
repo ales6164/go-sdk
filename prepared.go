@@ -2,10 +2,8 @@ package sdk
 
 import (
 	"google.golang.org/appengine/datastore"
-	"golang.org/x/net/context"
-	gcontext"github.com/gorilla/context"
-	"google.golang.org/appengine"
 	"regexp"
+	"google.golang.org/appengine"
 	"errors"
 )
 
@@ -13,29 +11,8 @@ type PreparedEntity struct {
 	Input          map[string]interface{}
 	Ready          map[*Field]interface{}
 	Output         datastore.PropertyList
-	Key            *PreparedKey
-	ParentKey      *PreparedKey
 	RequiredFields []string
 	Entity         *Ent
-}
-
-type PreparedKey struct {
-	HasParent           bool
-	Complete            bool
-	IsRequiredFromInput bool
-
-	FromToken bool
-	FromField string
-
-	NamespaceType
-	Kind     string
-	StringID string
-	IntID    int64
-}
-
-type DataObject struct {
-	Input  map[string]interface{}
-	Output datastore.PropertyList
 }
 
 // Fills static data and assembles keys
@@ -44,50 +21,6 @@ func PrepareEntity(ent *Ent) *PreparedEntity {
 	prepared.Entity = ent
 	prepared.Ready = map[*Field]interface{}{}
 	prepared.Input = map[string]interface{}{}
-
-	var keyRequiresFieldInput bool
-	var keyParentRequiresFieldInput bool
-
-	prepared.Key = new(PreparedKey)
-	if ent.Key != nil {
-		prepared.Key.FromField = ent.Key.FromField
-		prepared.Key.FromToken = ent.Key.FromToken
-		prepared.Key.Kind = ent.Key.Kind
-		prepared.Key.StringID = ent.Key.StringID
-		prepared.Key.IntID = ent.Key.IntID
-		prepared.Key.NamespaceType = ent.Key.NamespaceType
-
-		if len(prepared.Key.FromField) > 0 {
-			keyRequiresFieldInput = true
-			prepared.Key.IsRequiredFromInput = true
-		} else {
-			prepared.Key.Complete = true
-		}
-	}
-
-	if len(prepared.Key.Kind) == 0 {
-		prepared.Key.Kind = ent.Name
-	}
-
-	if ent.ParentKey != nil {
-		prepared.ParentKey = new(PreparedKey)
-
-		prepared.ParentKey.FromField = ent.ParentKey.FromField
-		prepared.ParentKey.FromToken = ent.ParentKey.FromToken
-		prepared.ParentKey.Kind = ent.ParentKey.Kind
-		prepared.ParentKey.StringID = ent.ParentKey.StringID
-		prepared.ParentKey.IntID = ent.ParentKey.IntID
-		prepared.ParentKey.NamespaceType = ent.ParentKey.NamespaceType
-
-		if len(prepared.ParentKey.FromField) > 0 {
-			keyParentRequiresFieldInput = true
-			prepared.ParentKey.IsRequiredFromInput = true
-		} else {
-			prepared.ParentKey.Complete = true
-		}
-
-		prepared.Key.HasParent = true
-	}
 
 	for fieldName, field := range ent.Fields {
 
@@ -125,36 +58,6 @@ func PrepareEntity(ent *Ent) *PreparedEntity {
 				prepared.Ready[field] = append(prepared.Ready[field].([]func() interface{}), field.WithValueFunc)
 			} else {
 				prepared.Ready[field] = field.WithValueFunc
-			}
-		}
-
-		if keyRequiresFieldInput && ent.Key.FromField == fieldName {
-			if field.WithStaticValue != nil {
-				if stringStaticValue, ok := field.WithStaticValue.(string); ok {
-					prepared.Key.StringID = stringStaticValue
-				} else if int64StaticValue, ok := field.WithStaticValue.(int64); ok {
-					prepared.Key.IntID = int64StaticValue
-				} else {
-					panic(errors.New("static value key id is of invalid type"))
-				}
-				prepared.Key.Complete = true
-				prepared.Key.IsRequiredFromInput = false
-				keyRequiresFieldInput = false
-			}
-		}
-
-		if keyParentRequiresFieldInput && ent.ParentKey.FromField == fieldName {
-			if field.WithStaticValue != nil {
-				if stringStaticValue, ok := field.WithStaticValue.(string); ok {
-					prepared.ParentKey.StringID = stringStaticValue
-				} else if int64StaticValue, ok := field.WithStaticValue.(int64); ok {
-					prepared.ParentKey.IntID = int64StaticValue
-				} else {
-					panic(errors.New("static value key id is of invalid type"))
-				}
-				prepared.ParentKey.Complete = true
-				prepared.ParentKey.IsRequiredFromInput = false
-				keyParentRequiresFieldInput = false
 			}
 		}
 	}
@@ -196,132 +99,9 @@ func validateAndTransformFieldValue(entity *Ent, name string, value interface{})
 	return nil, value, nil
 }
 
-func (e *PreparedEntity) GetOutputData(list datastore.PropertyList) map[string]interface{} {
-	var data = map[string]interface{}{}
-	for _, prop := range list {
-		if field, ok := e.Entity.Fields[prop.Name]; ok {
-			if field.Json == NoJsonOutput {
-				continue
-			}
-
-			var name = string(field.Json)
-
-			if len(field.GroupName) == 0 {
-				if field.Multiple {
-					if _, ok := data[name]; !ok {
-						data[name] = []interface{}{}
-					}
-					data[name] = append(data[name].([]interface{}), prop.Value)
-				} else {
-					data[name] = prop.Value
-				}
-			} else {
-				if _, ok := data[field.GroupName]; !ok {
-					data[field.GroupName] = map[string]interface{}{}
-				}
-
-				if field.Multiple {
-					if _, ok := data[field.GroupName].(map[string]interface{})[name]; !ok {
-						data[field.GroupName].(map[string]interface{})[name] = []interface{}{}
-					}
-					data[field.GroupName].(map[string]interface{})[name] = append(data[field.GroupName].(map[string]interface{})[name].([]interface{}), prop.Value)
-				} else {
-					data[field.GroupName].(map[string]interface{})[name] = prop.Value
-				}
-			}
-		}
-	}
-	return data
-}
-
-/*
-type GroupField struct {
-	Count         int                      `json:"count"`
-	LastPropCount int                      `json:"-"`
-	LastProp      string                   `json:"-"`
-	Items         []map[string]interface{} `json:"items"`
-}*/
-
-func (e *PreparedEntity) GetGroupedOutputData(list datastore.PropertyList) map[string]interface{} {
-	var data = map[string]interface{}{}
-
-	for _, prop := range list {
-		if field, ok := e.Entity.Fields[prop.Name]; ok {
-			if field.Json == NoJsonOutput {
-				continue
-			}
-
-			var name = string(field.Json)
-			var isGrouped bool
-			if len(field.GroupName) != 0 {
-				isGrouped = true
-			}
-
-			if field.Multiple {
-				if isGrouped {
-
-					if _, ok := data[field.GroupName]; !ok {
-						data[field.GroupName] = map[string]interface{}{
-							"LastPropCount": 0,
-							"LastProp":      "",
-							"count":         0,
-							"items":         []map[string]interface{}{},
-						}
-					}
-
-					var groupField map[string]interface{} = data[field.GroupName].(map[string]interface{})
-
-					if groupField["LastProp"] != name {
-						groupField["LastPropCount"] = 0
-						groupField["LastProp"] = name
-					} else {
-						groupField["LastPropCount"] = groupField["LastPropCount"].(int) + 1
-					}
-
-					if len(groupField["items"].([]map[string]interface{}))-1 < groupField["LastPropCount"].(int) {
-						groupField["items"] = append(groupField["items"].([]map[string]interface{}), map[string]interface{}{})
-					}
-
-					groupField["items"].([]map[string]interface{})[groupField["LastPropCount"].(int)][name] = prop.Value
-					groupField["count"] = len(groupField["items"].([]map[string]interface{}))
-
-					/*delete(groupField, "LastPropCount")
-					delete(groupField, "LastProp")*/
-
-					data[field.GroupName] = groupField
-				} else {
-					if _, ok := data[name]; !ok {
-						data[name] = []interface{}{}
-					}
-					data[name] = append(data[name].([]interface{}), prop.Value)
-				}
-
-			} else {
-				if isGrouped {
-					if _, ok := data[field.GroupName]; !ok {
-						data[field.GroupName] = map[string]interface{}{}
-					}
-
-					data[field.GroupName].(map[string]interface{})[name] = prop.Value
-				} else {
-					data[name] = prop.Value
-				}
-
-			}
-		}
-	}
-
-	return data
-}
-
-func (k *PreparedKey) GetKey(ctx context.Context, kind string, parent *datastore.Key) *datastore.Key {
-	if k != nil {
-		if k.Complete {
-			return datastore.NewKey(ctx, kind, k.StringID, k.IntID, parent)
-		}
-		return datastore.NewIncompleteKey(ctx, kind, parent)
-	}
-	return nil
+type DataObject struct {
+	Input  map[string]interface{}
+	Output datastore.PropertyList
 }
 
 func (e *PreparedEntity) appendReadyFields(dataObj *DataObject) {
@@ -410,9 +190,7 @@ func (e *PreparedEntity) rangeOverData(name string, value interface{}, dataObj *
 	return nil
 }
 
-func (e *PreparedEntity) FromMap(c Context, dataMap map[string]interface{}, checkIfRequired bool) (context.Context, *datastore.Key, *DataObject, error) {
-	var ctx context.Context
-	var key *datastore.Key
+func (e *PreparedEntity) FromMap(c Context, dataMap map[string]interface{}, checkIfRequired bool) (*DataObject, error) {
 	var err error
 	var dataObject = &DataObject{
 		Input:  map[string]interface{}{},
@@ -438,25 +216,22 @@ func (e *PreparedEntity) FromMap(c Context, dataMap map[string]interface{}, chec
 			for _, v := range valuesArr {
 				err = e.rangeOverData(name, v, dataObject)
 				if err != nil {
-					return ctx, key, dataObject, err
+					return dataObject, err
 				}
 			}
 		} else {
 			err = e.rangeOverData(name, values, dataObject)
 			if err != nil {
-				return ctx, key, dataObject, err
+				return dataObject, err
 			}
 		}
 	}
 
-	ctx, key, err = e.prepare(c, dataObject, checkIfRequired)
-	return ctx, key, dataObject, err
+	return dataObject, err
 
 }
 
-func (e *PreparedEntity) FromForm(c Context, checkIfRequired bool) (context.Context, *datastore.Key, *DataObject, error) {
-	var ctx context.Context
-	var key *datastore.Key
+func (e *PreparedEntity) FromForm(c Context) (*DataObject, error) {
 	var err error
 	var dataObject = &DataObject{
 		Input:  map[string]interface{}{},
@@ -471,11 +246,11 @@ func (e *PreparedEntity) FromForm(c Context, checkIfRequired bool) (context.Cont
 	// append ready fields
 	e.appendReadyFields(dataObject)
 
-	//todo: fix this
+	// todo: fix this
 	c.r.FormValue("a")
 
 	if err = c.r.ParseForm(); err != nil {
-		return ctx, key, dataObject, err
+		return dataObject, err
 	}
 
 	for name, values := range c.r.Form {
@@ -488,14 +263,19 @@ func (e *PreparedEntity) FromForm(c Context, checkIfRequired bool) (context.Cont
 		for _, v := range values {
 			err = e.rangeOverData(name, v, dataObject)
 			if err != nil {
-				return ctx, key, dataObject, err
+				return dataObject, err
 			}
 		}
 
 	}
 
-	ctx, key, err = e.prepare(c, dataObject, checkIfRequired)
-	return ctx, key, dataObject, err
+	for _, fieldName := range e.RequiredFields {
+		if _, ok := dataObject.Input[fieldName]; !ok {
+			return dataObject, FieldRequired.Params(fieldName)
+		}
+	}
+
+	return dataObject, err
 
 	/*// set search query
 	c.QueryData = map[string][]interface{}{}
@@ -513,129 +293,62 @@ func (e *PreparedEntity) FromForm(c Context, checkIfRequired bool) (context.Cont
 	}*/
 }
 
-func (e *PreparedEntity) prepare(c Context, dataObj *DataObject, check bool) (context.Context, *datastore.Key, error) {
-	var ctx context.Context
+var (
+	ErrKeyNameIdNil         = errors.New("key nameId is nil")
+	ErrKeyNameIdInvalidType = errors.New("key nameId invalid type (only string/int64)")
+)
+
+func (e *PreparedEntity) NewIncompleteKey(c Context, withNamespace bool) (Context, *datastore.Key, error) {
 	var key *datastore.Key
 	var err error
 
-	// check if it has all required fields
-	if check {
-		for _, fieldName := range e.RequiredFields {
-			if _, ok := dataObj.Input[fieldName]; !ok {
-				return ctx, key, FieldRequired.Params(fieldName)
-			}
-		}
-	}
+	c.ctx = appengine.NewContext(c.r)
 
-	ctx = appengine.NewContext(c.r)
-
-	// set request token
-	var hasResolvedToken bool
-	var hasAuthorizationErr bool
-	var username string
-	var getUsername = func() (string, error) {
-		if !hasResolvedToken && !hasAuthorizationErr {
-			requestToken := gcontext.Get(c.r, "user")
-			if requestToken != nil {
-				var ok bool
-				username, ok = resolveToken(requestToken)
-				if ok {
-					hasResolvedToken = true
-					return username, nil
-				}
-				return username, Unauthorized.Params("invalid token  (#102)")
-			}
-		}
-		hasAuthorizationErr = true
-		return username, GuestAccessRequest
-	}
-	var getNamespaceContext = func(ns NamespaceType) (context.Context, error) {
-		switch ns {
-		case UserNamespace:
-			u, err := getUsername()
+	if withNamespace {
+		if c.isAuthenticated && len(c.namespace) > 0 {
+			c.ctx, err = appengine.Namespace(c.ctx, c.namespace)
 			if err != nil {
-				return ctx, err
-			}
-
-			appCtx, err := appengine.Namespace(ctx, u)
-			if err != nil {
-				return ctx, err
-			}
-
-			return appCtx, nil
-		case NoNamespace:
-			return ctx, nil
-		}
-		return ctx, InvalidNamespaceType.Params(ns)
-	}
-
-	// create keys
-	var parentKey *datastore.Key
-	if e.ParentKey != nil {
-		parentKeyNsCtx, err := getNamespaceContext(e.ParentKey.NamespaceType)
-		if err != nil {
-			return ctx, key, err
-		}
-
-		if e.ParentKey.FromToken {
-			u, err := getUsername()
-			if err != nil && err != GuestAccessRequest {
-				return ctx, key, err
-			}
-			parentKey = datastore.NewKey(parentKeyNsCtx, e.ParentKey.Kind, u, 0, nil)
-		}
-		if e.ParentKey.IsRequiredFromInput {
-			if probablyKeyId, ok := dataObj.Input[e.ParentKey.FromField]; ok {
-				// check if is string or int64
-				if _, ok := probablyKeyId.(string); ok {
-					parentKey = datastore.NewKey(parentKeyNsCtx, e.ParentKey.Kind, probablyKeyId.(string), 0, nil)
-				} else if _, ok := probablyKeyId.(int64); ok {
-					parentKey = datastore.NewKey(parentKeyNsCtx, e.ParentKey.Kind, "", probablyKeyId.(int64), nil)
-				} else {
-					return ctx, key, IdFieldValueTypeError.Params(e.ParentKey.FromField)
-				}
-			} else {
-				return ctx, key, NoIdFieldValue.Params(e.ParentKey.FromField)
-			}
-		}
-
-		if !e.ParentKey.FromToken && !e.ParentKey.IsRequiredFromInput {
-			parentKey = e.ParentKey.GetKey(parentKeyNsCtx, e.ParentKey.Kind, nil)
-		}
-	}
-
-	ctx, err = getNamespaceContext(e.Key.NamespaceType)
-	if err != nil {
-		return ctx, key, err
-	}
-	if e.Key.FromToken {
-		u, err := getUsername()
-		if err != nil && err != GuestAccessRequest {
-			return ctx, key, err
-		}
-		key = datastore.NewKey(ctx, e.Key.Kind, u, 0, parentKey)
-	}
-	if e.Key.IsRequiredFromInput {
-		//todo:
-		if probablyKeyId, ok := dataObj.Input[e.Key.FromField]; ok {
-			// check if is string or int64
-			if _, ok := probablyKeyId.(string); ok {
-				key = datastore.NewKey(ctx, e.Key.Kind, probablyKeyId.(string), 0, parentKey)
-			} else if _, ok := probablyKeyId.(int64); ok {
-				key = datastore.NewKey(ctx, e.Key.Kind, "", probablyKeyId.(int64), parentKey)
-			} else {
-				return ctx, key, IdFieldValueTypeError.Params(e.Key.FromField)
+				return c, key, err
 			}
 		} else {
-			return ctx, key, NoIdFieldValue.Params(e.Key.FromField)
+			err = ErrNotAuthenticated
 		}
+	}
+
+	key = datastore.NewIncompleteKey(c.ctx, e.Entity.Name, nil)
+
+	return c, key, err
+}
+
+// Gets appengine context and datastore key with optional namespace. It doesn't fail if request is not authenticated.
+func (e *PreparedEntity) NewKey(c Context, nameId interface{}, withNamespace bool) (Context, *datastore.Key, error) {
+	var key *datastore.Key
+	var err error
+
+	if nameId == nil {
+		return c, key, ErrKeyNameIdNil
+	}
+
+	c.ctx = appengine.NewContext(c.r)
+
+	if withNamespace {
+		if c.isAuthenticated && len(c.namespace) > 0 {
+			c.ctx, err = appengine.Namespace(c.ctx, c.namespace)
+			if err != nil {
+				return c, key, err
+			}
+		} else {
+			err = ErrNotAuthenticated
+		}
+	}
+
+	if stringId, ok := nameId.(string); ok {
+		key = datastore.NewKey(c.ctx, e.Entity.Name, stringId, 0, nil)
+	} else if intId, ok := nameId.(int64); ok {
+		key = datastore.NewKey(c.ctx, e.Entity.Name, "", intId, nil)
 	} else {
-		key = e.ParentKey.GetKey(ctx, e.Key.Kind, parentKey)
+		return c, key, ErrKeyNameIdInvalidType
 	}
 
-	if key == nil {
-		key = datastore.NewIncompleteKey(ctx, e.Key.Kind, parentKey)
-	}
-
-	return ctx, key, nil
+	return c, key, err
 }

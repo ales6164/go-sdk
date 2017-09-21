@@ -2,12 +2,10 @@ package sdk
 
 import (
 	"github.com/dgrijalva/jwt-go"
-	"github.com/google/uuid"
-	"net/http"
 	"time"
 )
 
-func NewAuthMiddleware(signingKey []byte) *JWTMiddleware {
+func newAuthMiddleware(signingKey []byte) *JWTMiddleware {
 	return New(Options{
 		Extractor: FromFirst(
 			FromAuthHeader,
@@ -16,11 +14,12 @@ func NewAuthMiddleware(signingKey []byte) *JWTMiddleware {
 		ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
 			return signingKey, nil
 		},
-		SigningMethod: jwt.SigningMethodHS256,
+		SigningMethod:       jwt.SigningMethodHS256,
+		CredentialsOptional: true,
 	})
 }
 
-func (a *SDK) SetSession(w http.ResponseWriter, r *http.Request, id_token string) error {
+/*func (a *SDK) SetSession(w http.ResponseWriter, r *http.Request, id_token string) error {
 	session, err := a.SessionStore.Get(r, "auth-session")
 	if err != nil {
 		return err
@@ -28,23 +27,31 @@ func (a *SDK) SetSession(w http.ResponseWriter, r *http.Request, id_token string
 
 	session.Values["id_token"] = id_token
 	return session.Save(r, w)
+}*/
+
+type Token struct {
+	ID      string `json:"id"`
+	Expires int64  `json:"expires"`
 }
 
-func (a *SDK) NewToken(usr string) (string, error) {
+func NewToken(usr string) (Token, error) {
+	var exp = time.Now().Add(time.Hour * 12).Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"aud": "api",
-		"exp": time.Now().Add(time.Hour * 12).Unix(),
+		"nbf": time.Now().Add(-time.Minute * 10).Unix(),
+		"exp": exp,
 		"iat": time.Now().Unix(),
-		"iss": a.AppName,
+		"iss": "sdk",
 		"sub": usr,
 	})
 
-	return token.SignedString(a.SigningKey)
+	signed, err := token.SignedString(signingKey)
+	return Token{signed, exp}, err
 }
 
-func (a *SDK) AnonTokenHandler() http.Handler {
+/*func (a *SDK) AnonTokenHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := a.NewToken(uuid.New().String())
+		token, err := NewToken(uuid.New().String())
 		if err != nil {
 			printError(w, err, http.StatusInternalServerError)
 			return
@@ -52,4 +59,4 @@ func (a *SDK) AnonTokenHandler() http.Handler {
 
 		printData(w, token)
 	})
-}
+}*/
