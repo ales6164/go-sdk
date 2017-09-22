@@ -19,6 +19,7 @@ type Scope string
 var (
 	ScopeGet    Scope = "get"
 	ScopeEdit   Scope = "edit"
+	ScopePut    Scope = "put"
 	ScopeAdd    Scope = "add"
 	ScopeDelete Scope = "delete"
 )
@@ -77,14 +78,13 @@ var (
 	ErrFetching              = NewError("fetch: error fetching next %v")
 )
 
-func NewEntity(name string, fields []Field) *Ent {
-	var ent = &Ent{
-		Name:        name,
-	}
+func NewEntity(name string, fields []*Field) *Ent {
+	var ent = new(Ent)
+	ent.Name = name
 
 	ent.Fields = map[string]*Field{}
 	for _, field := range fields {
-		ent.Fields[field.Name] = &field
+		ent.Fields[field.Name] = field
 	}
 
 	return ent
@@ -96,28 +96,28 @@ func (e *Ent) Prepare() *PreparedEntity {
 	prepared.Ready = map[*Field]interface{}{}
 	prepared.Input = map[string]interface{}{}
 
-	for fieldName, field := range e.Fields {
+	for _, field := range e.Fields {
 
-		if field.IsRequired {
-			prepared.RequiredFields = append(prepared.RequiredFields, fieldName)
+		if len(field.Json) == 0 {
+			field.Json = JsonOutput(field.Name)
 		}
 
-		if len(field.Json) == 0 && field.Json != NoJsonOutput {
-			field.Json = JsonOutput(fieldName)
+		if field.IsRequired {
+			prepared.RequiredFields = append(prepared.RequiredFields, field.Name)
 		}
 
 		if field.WithStaticValue != nil {
 			if field.Multiple {
-				if prepared.Input[fieldName] == nil {
-					prepared.Input[fieldName] = []interface{}{}
+				if prepared.Input[field.Name] == nil {
+					prepared.Input[field.Name] = []interface{}{}
 				}
-				prepared.Input[fieldName] = append(prepared.Input[fieldName].([]interface{}), field.WithStaticValue)
+				prepared.Input[field.Name] = append(prepared.Input[field.Name].([]interface{}), field.WithStaticValue)
 			} else {
-				prepared.Input[fieldName] = field.WithStaticValue
+				prepared.Input[field.Name] = field.WithStaticValue
 			}
 
 			prepared.Output = append(prepared.Output, datastore.Property{
-				Name:     fieldName,
+				Name:     field.Name,
 				Value:    field.WithStaticValue,
 				NoIndex:  field.NoIndex,
 				Multiple: field.Multiple,

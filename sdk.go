@@ -67,7 +67,7 @@ func (a *SDK) SigningKey(key []byte) {
 	a.SessionStore = sessions.NewCookieStore(s)
 }*/
 
-func (a *SDK) EnableAuthAPI(key []byte) {
+func (a *SDK) EnableAuthAPI() {
 	a.HandleFunc("/api/auth/login", LoginHandler).Methods(http.MethodPost)
 	a.HandleFunc("/api/auth/register", RegisterHandler).Methods(http.MethodPost)
 	a.HandleFunc("/api/auth", func(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +94,7 @@ func (a *SDK) Handle(path string, handler http.Handler) *mux.Route {
 }
 
 func (a *SDK) HandleFunc(path string, handlerFunc func(w http.ResponseWriter, r *http.Request)) *mux.Route {
-	return a.Router.Handle(path, a.middleware.Handler(http.Handler(handlerFunc)))
+	return a.Router.Handle(path, a.middleware.Handler(http.HandlerFunc(handlerFunc)))
 }
 
 func (a *SDK) Handler(handlerFunc http.HandlerFunc) http.Handler {

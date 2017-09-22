@@ -12,7 +12,7 @@ var userEntity *PreparedEntity
 
 func init() {
 	userEntity = NewEntity("user",
-		[]Field{
+		[]*Field{
 			{
 				Name: "created",
 				WithValueFunc: func() interface{} {
@@ -167,7 +167,7 @@ func Register(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, err
 	}
 
-	err = userEntity.Add(ctx, key, data.Output)
+	key, err = userEntity.Add(ctx, key, data.Output)
 	if err != nil {
 		if err == EntityAlreadyExists {
 			// todo

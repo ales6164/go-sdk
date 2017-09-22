@@ -46,7 +46,7 @@ func (c Context) WithScopes(scopes ...Scope) Context {
 	return c
 }
 
-func (c Context) WithNamespace()  {
+func (c Context) WithNamespace() {
 	if c.IsAuthenticated && len(c.Namespace) != 0 {
 		c.Context, c.err = appengine.Namespace(c.Context, c.Namespace)
 	} else {
@@ -75,20 +75,19 @@ func getUser(r *http.Request) (bool, string, string, Token, error) {
 					}
 				}
 				return isAuthenticated, namespace, username, renewedToken, ErrIllegalAction
-			} else if err == jwt.ValidationError(jwt.ValidationErrorExpired) {
-				if exp, ok := claims["exp"].(int64); ok {
-					// check if it's less than a week old
-					if time.Now().Unix()-exp < time.Now().Add(time.Hour * 24 * 7).Unix() {
-						if username, ok := claims["sub"].(string); ok {
-							if namespace, ok := claims["namespace"].(string); ok {
-								renewedToken, err = NewToken(namespace, username)
-								if err != nil {
-									return isAuthenticated, namespace, username, renewedToken, err
-								}
-								return true, namespace, username, renewedToken, err
+			} else if exp, ok := claims["exp"].(int64); ok {
+				// check if it's less than a week old
+				if time.Now().Unix()-exp < time.Now().Add(time.Hour * 24 * 7).Unix() {
+					if username, ok := claims["sub"].(string); ok {
+						if namespace, ok := claims["namespace"].(string); ok {
+							renewedToken, err = NewToken(namespace, username)
+							if err != nil {
+								return isAuthenticated, namespace, username, renewedToken, err
 							}
+							return true, namespace, username, renewedToken, err
 						}
 					}
+
 				}
 			}
 		}

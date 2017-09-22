@@ -4,6 +4,7 @@ import (
 	"google.golang.org/appengine/datastore"
 	"regexp"
 	"errors"
+	"reflect"
 )
 
 type PreparedEntity struct {
@@ -39,7 +40,6 @@ func (e *PreparedEntity) DecodeKey(c Context, encodedKey string) (Context, *data
 
 	return c, key, err
 }
-
 
 func (e *PreparedEntity) NewIncompleteKey(c Context, withNamespace bool) (Context, *datastore.Key) {
 	var key *datastore.Key
@@ -77,12 +77,18 @@ func (e *PreparedEntity) NewKey(c Context, nameId interface{}, withNamespace boo
 	return c, key, err
 }
 
+var (
+	ErrInvalidType        = errors.New("data: invalid type")
+	ErrMultipleProperties = errors.New("data: multiple properties")
+)
+
 func (e *PreparedEntity) FromMap(c Context, dataMap map[string]interface{}) (*DataObject, error) {
 	var err error
-	var dataObject = &DataObject{
-		Input:  map[string]interface{}{},
-		Output: e.Output,
-	}
+	var dataObject = new(DataObject)
+	dataObject.Input = map[string]interface{}{}
+
+	// copy values
+	copy(dataObject.Output, e.Output)
 
 	// copy values
 	for key, value := range e.Input {
@@ -99,18 +105,20 @@ func (e *PreparedEntity) FromMap(c Context, dataMap map[string]interface{}) (*Da
 			name = name[:len(name)-2]
 		}
 
-		if valuesArr, ok := values.([]interface{}); ok {
-			for _, v := range valuesArr {
+		if _, ok := values.([]interface{}); ok || reflect.TypeOf(values).String() == "[]interface {}" {
+			for _, v := range values.([]interface{}) {
 				err = e.rangeOverData(name, v, dataObject)
 				if err != nil {
 					return dataObject, err
 				}
 			}
-		} else {
-			err = e.rangeOverData(name, values, dataObject)
+		} else if valuesInt, ok := values.(interface{}); ok {
+			err = e.rangeOverData(name, valuesInt, dataObject)
 			if err != nil {
 				return dataObject, err
 			}
+		} else {
+			return dataObject, ErrInvalidType
 		}
 	}
 
@@ -126,10 +134,10 @@ func (e *PreparedEntity) FromMap(c Context, dataMap map[string]interface{}) (*Da
 
 func (e *PreparedEntity) FromForm(c Context) (*DataObject, error) {
 	var err error
-	var dataObject = &DataObject{
-		Input:  map[string]interface{}{},
-		Output: e.Output,
-	}
+	var dataObject = new(DataObject)
+	dataObject.Input = map[string]interface{}{}
+
+	copy(dataObject.Output, e.Output)
 
 	// copy values
 	for key, value := range e.Input {
@@ -188,10 +196,10 @@ func (e *PreparedEntity) FromForm(c Context) (*DataObject, error) {
 
 func (e *PreparedEntity) appendReadyFields(dataObj *DataObject) {
 	for field, fun := range e.Ready {
-		if field.Multiple {
+		/*if field.Multiple {
 			dataObj.Input[field.Name] = []interface{}{}
 
-			for _, funFun := range fun.([]func() interface{}) {
+			for _, funFun := range fun.(func() interface{}) {
 				var value = funFun()
 				dataObj.Input[field.Name] = append(dataObj.Input[field.Name].([]interface{}), value)
 				dataObj.Output = append(dataObj.Output, datastore.Property{
@@ -201,24 +209,20 @@ func (e *PreparedEntity) appendReadyFields(dataObj *DataObject) {
 					Multiple: field.Multiple,
 				})
 			}
-		} else {
-			var value = fun.(func() interface{})()
+		} else {*/
+		var value = fun.(func() interface{})()
 
-			if len(field.Json) > 0 {
-				if field.Json != NoJsonOutput {
-					dataObj.Input[string(field.Json)] = value
-				}
-			} else {
-				dataObj.Input[field.Name] = value
-			}
-
-			dataObj.Output = append(dataObj.Output, datastore.Property{
-				Name:     field.Name,
-				Value:    value,
-				NoIndex:  field.NoIndex,
-				Multiple: field.Multiple,
-			})
+		if field.Json != NoJsonOutput {
+			dataObj.Input[string(field.Json)] = value
 		}
+
+		dataObj.Output = append(dataObj.Output, datastore.Property{
+			Name:     field.Name,
+			Value:    value,
+			NoIndex:  field.NoIndex,
+			Multiple: field.Multiple,
+		})
+		/*}*/
 	}
 }
 
@@ -231,24 +235,14 @@ func (e *PreparedEntity) rangeOverData(name string, value interface{}, dataObj *
 	}
 
 	if field != nil {
-		var noJsonOutput bool
-		if len(field.Json) > 0 {
-			if field.Json == NoJsonOutput {
-				noJsonOutput = true
-			} /*else {
-				name = string(field.Json)
-			}*/
-		}
 
-		if !noJsonOutput {
-			if field.Multiple {
-				if _, ok := dataObj.Input[name]; !ok {
-					dataObj.Input[name] = []interface{}{}
-				}
-				dataObj.Input[name] = append(dataObj.Input[name].([]interface{}), value)
-			} else {
-				dataObj.Input[name] = value
+		if field.Multiple {
+			if _, ok := dataObj.Input[name]; !ok {
+				dataObj.Input[name] = []interface{}{}
 			}
+			dataObj.Input[name] = append(dataObj.Input[name].([]interface{}), value)
+		} else {
+			dataObj.Input[name] = value
 		}
 
 		dataObj.Output = append(dataObj.Output, datastore.Property{
