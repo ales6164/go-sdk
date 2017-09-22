@@ -6,7 +6,6 @@ import (
 	"google.golang.org/appengine/datastore"
 	"net/http"
 	"github.com/gorilla/sessions"
-	"github.com/gorilla/securecookie"
 )
 
 type SDK struct {
@@ -17,6 +16,7 @@ type SDK struct {
 }
 
 type AppOptions struct {
+	SigningKey         []byte
 	WithAuthentication bool
 	/*WithSecureSession  bool*/
 }
@@ -52,13 +52,13 @@ func NewApp(opt AppOptions) SDK {
 	}
 
 	if opt.WithAuthentication {
-		a.SigningKey(securecookie.GenerateRandomKey(128))
+		a.signingKey(opt.SigningKey)
 	}
 
 	return a
 }
 
-func (a *SDK) SigningKey(key []byte) {
+func (a *SDK) signingKey(key []byte) {
 	signingKey = key
 	a.middleware = newAuthMiddleware(key)
 }

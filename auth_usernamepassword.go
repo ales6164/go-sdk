@@ -190,12 +190,13 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, ErrAlreadyAuthenticated
 	}
 
-	data, err := userEntity.FromForm(ctx)
-	if err != nil {
-		return id_token, nil, err
+	username := ctx.r.FormValue("email")
+	password := ctx.r.FormValue("password")
+	if len(username) == 0 {
+		return id_token, nil, FieldRequired.Params("email")
 	}
 
-	ctx, key, err := userEntity.NewKey(ctx, data.Input["email"], false)
+	ctx, key, err := userEntity.NewKey(ctx, username, false)
 	if err != nil {
 		return id_token, nil, err
 	}
@@ -206,7 +207,7 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 	}
 
 	d := userEntity.GetOutputData(ps)
-	err = decrypt([]byte(d["password"].([]uint8)), []byte(data.Input["password"].(string)))
+	err = decrypt([]byte(d["password"].([]uint8)), []byte(password))
 	if err != nil {
 		return id_token, nil, ErrNotAuthorized
 	}
