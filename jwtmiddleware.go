@@ -158,6 +158,17 @@ func FromParameter(param string) TokenExtractor {
 		return r.URL.Query().Get(param), nil
 	}
 }
+// FromParameter returns a function that extracts the token from the specified
+// query string parameter
+func FromSession(sessionName string) TokenExtractor {
+	return func(r *http.Request) (string, error) {
+		session, err := session.Get(r, sessionName)
+		if err != nil {
+			return "", err
+		}
+		return session.Values["id_token"].(string), nil
+	}
+}
 
 // FromFirst returns a function that runs multiple token extractors and takes the
 // first token it finds

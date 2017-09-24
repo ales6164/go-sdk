@@ -16,8 +16,8 @@ type PreparedEntity struct {
 }
 
 type DataObject struct {
-	Input  map[string]interface{}
-	Output datastore.PropertyList
+	DataMap map[string]interface{}
+	Output  datastore.PropertyList
 }
 
 var (
@@ -85,14 +85,14 @@ var (
 func (e *PreparedEntity) FromMap(c Context, dataMap map[string]interface{}) (*DataObject, error) {
 	var err error
 	var dataObject = new(DataObject)
-	dataObject.Input = map[string]interface{}{}
+	dataObject.DataMap = map[string]interface{}{}
 
 	// copy values
 	copy(dataObject.Output, e.Output)
 
 	// copy values
 	for key, value := range e.Input {
-		dataObject.Input[key] = value
+		dataObject.DataMap[key] = value
 	}
 
 	// append ready fields
@@ -123,7 +123,7 @@ func (e *PreparedEntity) FromMap(c Context, dataMap map[string]interface{}) (*Da
 	}
 
 	for _, fieldName := range e.RequiredFields {
-		if _, ok := dataObject.Input[fieldName]; !ok {
+		if _, ok := dataObject.DataMap[fieldName]; !ok {
 			return dataObject, FieldRequired.Params(fieldName)
 		}
 	}
@@ -135,13 +135,13 @@ func (e *PreparedEntity) FromMap(c Context, dataMap map[string]interface{}) (*Da
 func (e *PreparedEntity) FromForm(c Context) (*DataObject, error) {
 	var err error
 	var dataObject = new(DataObject)
-	dataObject.Input = map[string]interface{}{}
+	dataObject.DataMap = map[string]interface{}{}
 
 	copy(dataObject.Output, e.Output)
 
 	// copy values
 	for key, value := range e.Input {
-		dataObject.Input[key] = value
+		dataObject.DataMap[key] = value
 	}
 
 	// append ready fields
@@ -171,7 +171,7 @@ func (e *PreparedEntity) FromForm(c Context) (*DataObject, error) {
 	}
 
 	for _, fieldName := range e.RequiredFields {
-		if _, ok := dataObject.Input[fieldName]; !ok {
+		if _, ok := dataObject.DataMap[fieldName]; !ok {
 			return dataObject, FieldRequired.Params(fieldName)
 		}
 	}
@@ -213,7 +213,7 @@ func (e *PreparedEntity) appendReadyFields(dataObj *DataObject) {
 		var value = fun.(func() interface{})()
 
 		if field.Json != NoJsonOutput {
-			dataObj.Input[string(field.Json)] = value
+			dataObj.DataMap[string(field.Json)] = value
 		}
 
 		dataObj.Output = append(dataObj.Output, datastore.Property{
@@ -237,12 +237,12 @@ func (e *PreparedEntity) rangeOverData(name string, value interface{}, dataObj *
 	if field != nil {
 
 		if field.Multiple {
-			if _, ok := dataObj.Input[name]; !ok {
-				dataObj.Input[name] = []interface{}{}
+			if _, ok := dataObj.DataMap[name]; !ok {
+				dataObj.DataMap[name] = []interface{}{}
 			}
-			dataObj.Input[name] = append(dataObj.Input[name].([]interface{}), value)
+			dataObj.DataMap[name] = append(dataObj.DataMap[name].([]interface{}), value)
 		} else {
-			dataObj.Input[name] = value
+			dataObj.DataMap[name] = value
 		}
 
 		dataObj.Output = append(dataObj.Output, datastore.Property{
@@ -253,13 +253,13 @@ func (e *PreparedEntity) rangeOverData(name string, value interface{}, dataObj *
 		})
 	} else {
 		// if we get multiple values with the same name (from undefined field) we create an array
-		if currData, ok := dataObj.Input[name]; ok {
+		if currData, ok := dataObj.DataMap[name]; ok {
 
 			// check if already is an array
 			if _, ok := currData.([]interface{}); ok {
-				dataObj.Input[name] = append(dataObj.Input[name].([]interface{}), value)
+				dataObj.DataMap[name] = append(dataObj.DataMap[name].([]interface{}), value)
 			} else {
-				dataObj.Input[name] = []interface{}{currData}
+				dataObj.DataMap[name] = []interface{}{currData}
 			}
 		}
 	}

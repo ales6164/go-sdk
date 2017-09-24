@@ -6,6 +6,7 @@ import (
 	"google.golang.org/appengine/datastore"
 	"net/http"
 	"github.com/gorilla/sessions"
+	"github.com/gorilla/securecookie"
 )
 
 type SDK struct {
@@ -17,8 +18,6 @@ type SDK struct {
 
 type AppOptions struct {
 	SigningKey         []byte
-	WithAuthentication bool
-	/*WithSecureSession  bool*/
 }
 
 type Config struct {
@@ -51,23 +50,15 @@ func NewApp(opt AppOptions) SDK {
 		Router:     mux.NewRouter(),
 	}
 
-	if opt.WithAuthentication {
-		a.signingKey(opt.SigningKey)
+	if opt.SigningKey == nil {
+		opt.SigningKey = securecookie.GenerateRandomKey(64)
 	}
 
-	return a
-}
+	signingKey = opt.SigningKey
+	a.middleware = AuthMiddleware(signingKey)
 
-func (a *SDK) signingKey(key []byte) {
-	signingKey = key
-	a.middleware = newAuthMiddleware(key)
-}
-
-/*func (a *SDK) SessionStore(s ...[]byte) {
-	a.SessionStore = sessions.NewCookieStore(s)
-}*/
-
-func (a *SDK) EnableAuthAPI() {
+	a.HandleFunc("/api/profile", GetUserProfileHandler).Methods(http.MethodGet)
+	a.HandleFunc("/api/profile", EditUserProfileHandler).Methods(http.MethodPut)
 	a.HandleFunc("/api/auth/login", LoginHandler).Methods(http.MethodPost)
 	a.HandleFunc("/api/auth/register", RegisterHandler).Methods(http.MethodPost)
 	a.HandleFunc("/api/auth", func(w http.ResponseWriter, r *http.Request) {
@@ -83,6 +74,12 @@ func (a *SDK) EnableAuthAPI() {
 
 		ctx.PrintError(w, ErrNotAuthenticated, http.StatusNetworkAuthenticationRequired)
 	}).Methods(http.MethodPost)
+
+	return a
+}
+
+func (a *SDK) EnableAdminDashboard() {
+	AdminDashboard(a)
 }
 
 func (a *SDK) Serve(path string) {

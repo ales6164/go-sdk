@@ -75,15 +75,11 @@ func (e *PreparedEntity) Edit(ctx Context, key *datastore.Key, ps datastore.Prop
 				var tempEnt datastore.PropertyList
 				err := datastore.Get(tc, key, &tempEnt)
 				if err != nil {
-					if err == datastore.ErrNoSuchEntity {
-						key, err = datastore.Put(tc, key, &ps)
-						return err
-					}
 					return err
-				} else {
-					return EntityAlreadyExists.Params(key.Kind())
 				}
-				return nil
+
+				key, err = datastore.Put(tc, key, &ps)
+				return err
 			}, nil)
 		} else {
 			return key, ErrKeyIncomplete
