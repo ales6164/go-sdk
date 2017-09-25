@@ -5,6 +5,7 @@ import (
 	"time"
 	"errors"
 	"net/http"
+	"github.com/google/uuid"
 )
 
 func AuthMiddleware(signingKey []byte) *JWTMiddleware {
@@ -62,9 +63,9 @@ func SetSecureSession(id_token string, w http.ResponseWriter, r *http.Request) e
 	return session.Save(r, w)
 }
 
-/*func (a *SDK) AnonTokenHandler() http.Handler {
+func (a *SDK) AnonTokenHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := NewToken(uuid.New().String())
+		token, err := NewToken("", uuid.New().String())
 		if err != nil {
 			printError(w, err, http.StatusInternalServerError)
 			return
@@ -72,4 +73,4 @@ func SetSecureSession(id_token string, w http.ResponseWriter, r *http.Request) e
 
 		printData(w, token)
 	})
-}*/
+}
