@@ -61,10 +61,10 @@ func getUser(r *http.Request) (bool, string, string, Token, error) {
 	var renewedToken Token
 	var err error
 
-	user := gctx.Get(r, "user")
+	tkn := gctx.Get(r, "user")
 
-	if user != nil {
-		token := user.(*jwt.Token)
+	if tkn != nil {
+		token := tkn.(*jwt.Token)
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			err = claims.Valid()
@@ -75,9 +75,9 @@ func getUser(r *http.Request) (bool, string, string, Token, error) {
 					}
 				}
 				return isAuthenticated, namespace, username, renewedToken, ErrIllegalAction
-			} else if exp, ok := claims["exp"].(int64); ok {
+			} else if exp, ok := claims["exp"].(float64); ok {
 				// check if it's less than a week old
-				if time.Now().Unix()-exp < time.Now().Add(time.Hour * 24 * 7).Unix() {
+				if time.Now().Unix()-int64(exp) < time.Now().Add(time.Hour * 24 * 7).Unix() {
 					if username, ok := claims["sub"].(string); ok {
 						if namespace, ok := claims["namespace"].(string); ok {
 							renewedToken, err = NewToken(namespace, username)
@@ -87,7 +87,6 @@ func getUser(r *http.Request) (bool, string, string, Token, error) {
 							return true, namespace, username, renewedToken, err
 						}
 					}
-
 				}
 			}
 		}

@@ -121,13 +121,12 @@ func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ps, err := profileEntity.Get(ctx, key)
+	d, _, err := profileEntity.Get(ctx, key)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	d := profileEntity.GetOutputData(ps)
 	ctx.Print(w, d)
 }
 
@@ -142,18 +141,20 @@ func GetUserProfile(r *http.Request) (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	ps, err := profileEntity.Get(ctx, key)
+	d, _, err := profileEntity.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
-
-	d := profileEntity.GetOutputData(ps)
 
 	return d, nil
 }
 
 func EditUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := NewContext(r).WithScopes(ScopeEdit)
+	if ctx.err != nil {
+		ctx.PrintError(w, ctx.err, http.StatusInternalServerError)
+		return
+	}
 	if !ctx.IsAuthenticated {
 		ctx.PrintError(w, ErrNotAuthenticated, http.StatusUnauthorized)
 		return
@@ -289,7 +290,7 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, err
 	}
 
-	ps, err := userEntity.Get(ctx, key)
+	_, ps, err := userEntity.Get(ctx, key)
 	if err != nil {
 		return id_token, nil, err
 	}
@@ -309,12 +310,12 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, err
 	}
 
-	ps, err = profileEntity.Get(ctx, profileKey)
+	profileD, ps, err := profileEntity.Get(ctx, profileKey)
 	if err != nil {
 		return id_token, nil, err
 	}
 
-	for name, value := range profileEntity.GetOutputData(ps) {
+	for name, value := range profileD {
 		d[name] = value
 	}
 

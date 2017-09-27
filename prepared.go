@@ -13,6 +13,9 @@ type PreparedEntity struct {
 	Output         datastore.PropertyList
 	RequiredFields []string
 	Entity         *Ent
+
+	// listeners
+	OnAfterRead func(data map[string]interface{}, list *datastore.PropertyList) (map[string]interface{}, error)
 }
 
 type DataObject struct {
@@ -298,4 +301,34 @@ func validateAndTransformFieldValue(entity *Ent, name string, value interface{})
 		}
 	}
 	return nil, value, nil
+}
+
+func (d *DataObject) Add(e *PreparedEntity, name string, value interface{}) {
+	if field, ok := e.Entity.Fields[name]; ok {
+		if field.Multiple {
+			if _, ok := d.DataMap[name]; !ok {
+				d.DataMap[name] = []interface{}{}
+			}
+			d.DataMap[name] = append(d.DataMap[name].([]interface{}), value)
+		} else {
+			d.DataMap[name] = value
+		}
+
+		d.Output = append(d.Output, datastore.Property{
+			Name:     field.Name,
+			Value:    value,
+			NoIndex:  field.NoIndex,
+			Multiple: field.Multiple,
+		})
+	} else {
+		if currData, ok := d.DataMap[name]; ok {
+
+			// check if already is an array
+			if _, ok := currData.([]interface{}); ok {
+				d.DataMap[name] = append(d.DataMap[name].([]interface{}), value)
+			} else {
+				d.DataMap[name] = []interface{}{currData}
+			}
+		}
+	}
 }

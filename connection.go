@@ -24,13 +24,21 @@ func isAuthorized(ctx Context, key *datastore.Key, hasScope bool) bool {
 	return hasScope
 }
 
-func (e *PreparedEntity) Get(ctx Context, key *datastore.Key) (datastore.PropertyList, error) {
+func (e *PreparedEntity) Get(ctx Context, key *datastore.Key) (map[string]interface{}, datastore.PropertyList, error) {
+	var data map[string]interface{}
 	var ps datastore.PropertyList
 	if isAuthorized(ctx, key, ctx.HasScope(ScopeGet)) {
 		err := datastore.Get(ctx.Context, key, &ps)
-		return ps, err
+		if err != nil {
+			return data, ps, err
+		}
+		data = e.GetGroupedOutputData(ps)
+		if e.OnAfterRead != nil {
+			data, err = e.OnAfterRead(data, &ps)
+		}
+		return data, ps, err
 	}
-	return ps, ErrNotAuthorized
+	return data, ps, ErrNotAuthorized
 }
 
 func (e *PreparedEntity) Add(ctx Context, key *datastore.Key, ps datastore.PropertyList) (*datastore.Key, error) {

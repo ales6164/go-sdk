@@ -158,6 +158,7 @@ func FromParameter(param string) TokenExtractor {
 		return r.URL.Query().Get(param), nil
 	}
 }
+
 // FromParameter returns a function that extracts the token from the specified
 // query string parameter
 func FromSession(sessionName string) TokenExtractor {
@@ -231,7 +232,9 @@ func (m *JWTMiddleware) CheckJWT(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// Now parse the token
-	parsedToken, err := jwt.Parse(token, m.Options.ValidationKeyGetter)
+	parser := new(jwt.Parser)
+	parser.SkipClaimsValidation = true
+	parsedToken, err := parser.Parse(token, m.Options.ValidationKeyGetter)
 
 	// Check if there was an error in parsing...
 	if err != nil {
