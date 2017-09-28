@@ -13,6 +13,12 @@ gen### Go template
 *.so
 *.dylib
 
+node_modules
+dist/
+.tmp
+app.yaml
+
+
 # Test binary, build with `go test -c`
 *.test
 
