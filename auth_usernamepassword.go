@@ -6,12 +6,31 @@ import (
 	"net/http"
 	"errors"
 	"github.com/google/uuid"
+	"html/template"
+	"google.golang.org/appengine/mail"
 )
 
 var userEntity *PreparedEntity
 var profileEntity *PreparedEntity
+var lostPasswordRequest *PreparedEntity
 
 func init() {
+	lostPasswordRequest = NewEntity("lostPasswordRequest",
+		[]*Field{
+			{
+				Name: "created",
+				WithValueFunc: func() interface{} {
+					return time.Now()
+				},
+			},
+			{
+				Name:       "email",
+				IsRequired: true,
+				Validator: func(value interface{}) bool {
+					return govalidator.IsEmail(value.(string))
+				},
+			},
+		}).Prepare()
 	userEntity = NewEntity("user",
 		[]*Field{
 			{
@@ -326,39 +345,86 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 	return id_token, d, err
 }
 
-func (a *SDK) UpdatePassword(ctx Context) (bool, error) {
-	/*var newPassword interface{}
+var recoverAccountEmailTemplate *template.Template
 
-	*//*email, ok := GetUser(ctx.r)
-	if !ok {
-		return false, errors.New("invalid token")
-	}*//*
+func init() {
+	recoverAccountEmailTemplate, _ = template.New("").ParseFiles("lost_password.html")
+}
 
-	engineCtx, key, d, err := userEntity.FromForm(ctx, false)
+func CreateLostPasswordRequestHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := NewContext(r).WithScopes(ScopeGet, ScopeAdd)
+
+	email := r.FormValue("email")
+	if !govalidator.IsEmail(email) {
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
+	}
+
+	ctx, key, err := userEntity.NewKey(ctx, email, false)
 	if err != nil {
-		return false, err
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
 	}
 
-	var ok bool
-	if newPassword, ok = d.Input["newPassword"]; !ok {
-		return false, errors.New("field newPassword is empty")
-	}
-
-	err = Get(engineCtx, key, &d.Output)
+	// check if user exists
+	_, _, err = userEntity.Get(ctx, key)
 	if err != nil {
-		return false, err
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
 	}
 
-	for _, prop := range d.Output {
-		if prop.Name == "password" {
-			prop.Value = newPassword
-		}
-	}
-
-	_, err = Put(engineCtx, key, d.Output)
+	ctx, key = lostPasswordRequest.NewIncompleteKey(ctx, false)
+	do, err := lostPasswordRequest.FromMap(ctx, map[string]interface{}{
+		"email": email,
+	})
 	if err != nil {
-		return false, err
-	}*/
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
+	}
 
-	return true, nil
+	key, err = lostPasswordRequest.Add(ctx, key, do.Output)
+	if err != nil {
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
+	}
+
+	// send recovery email with encoded key
+	err = ctx.sendEmail(&mail.Message{
+		Sender:  "Tisk Daril <no-reply@tiskdaril.appspotmail.com>",
+		To:      []string{email},
+		Subject: "Zahtevek za spremembo gesla",
+	}, recoverAccountEmailTemplate, key.Encode())
+	if err != nil {
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
+	}
+
+	ctx.Print(w, "success")
+}
+
+func UpdatePasswordHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := NewContext(r).WithScopes(ScopeGet, ScopeEdit)
+
+	encoded := r.FormValue("id")
+	newPassword := r.FormValue("password")
+
+	ctx, key, err := userEntity.NewKey(ctx, do.DataMap["email"], false)
+	if err != nil {
+		return id_token, nil, err
+	}
+
+	_, ps, err := userEntity.Get(ctx, key)
+	if err != nil {
+		return id_token, nil, err
+	}
+
+	d := map[string]interface{}{}
+	for _, val := range ps {
+		d[val.Name] = val.Value
+	}
+	err = decrypt([]byte(d["password"].([]uint8)), []byte(ctx.r.FormValue("password")))
+	if err != nil {
+		return id_token, nil, ErrNotAuthorized
+	}
+
 }
