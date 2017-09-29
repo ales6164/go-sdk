@@ -402,7 +402,7 @@ func CreateLostPasswordRequestHandler(w http.ResponseWriter, r *http.Request) {
 	ctx.Print(w, "success")
 }
 
-func UpdatePasswordHandler(w http.ResponseWriter, r *http.Request) {
+/*func UpdatePasswordHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := NewContext(r).WithScopes(ScopeGet, ScopeEdit)
 
 	encoded := r.FormValue("id")
@@ -427,4 +427,4 @@ func UpdatePasswordHandler(w http.ResponseWriter, r *http.Request) {
 		return id_token, nil, ErrNotAuthorized
 	}
 
-}
+}*/
