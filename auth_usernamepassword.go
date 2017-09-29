@@ -30,6 +30,10 @@ func init() {
 					return govalidator.IsEmail(value.(string))
 				},
 			},
+			{
+				Name:         "isUnused",
+				DefaultValue: true,
+			},
 		}).Prepare()
 	userEntity = NewEntity("user",
 		[]*Field{
@@ -402,29 +406,72 @@ func CreateLostPasswordRequestHandler(w http.ResponseWriter, r *http.Request) {
 	ctx.Print(w, "success")
 }
 
-/*func UpdatePasswordHandler(w http.ResponseWriter, r *http.Request) {
+func UpdatePasswordHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := NewContext(r).WithScopes(ScopeGet, ScopeEdit)
 
-	encoded := r.FormValue("id")
+	// get form values
+	encoded := r.FormValue("key")
 	newPassword := r.FormValue("password")
 
-	ctx, key, err := userEntity.NewKey(ctx, do.DataMap["email"], false)
+	// decode key
+	ctx, key, err := lostPasswordRequest.DecodeKey(ctx, encoded)
 	if err != nil {
-		return id_token, nil, err
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
 	}
 
-	_, ps, err := userEntity.Get(ctx, key)
+	// get lost password datastore entry
+	data, ps, err := lostPasswordRequest.Get(ctx, key)
 	if err != nil {
-		return id_token, nil, err
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
 	}
 
-	d := map[string]interface{}{}
-	for _, val := range ps {
-		d[val.Name] = val.Value
-	}
-	err = decrypt([]byte(d["password"].([]uint8)), []byte(ctx.r.FormValue("password")))
-	if err != nil {
-		return id_token, nil, ErrNotAuthorized
+	// check if the request is still valid
+	if !data["isUnused"].(bool) && !data["created"].(time.Time).After(time.Now().Add(-24 * time.Hour)) {
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
 	}
 
-}*/
+	// set request invalid
+	data["isUnused"] = false
+	do, err := lostPasswordRequest.FromMap(ctx, data)
+	if err != nil {
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
+	}
+	key, err = lostPasswordRequest.Edit(ctx, key, do.Output)
+	if err != nil {
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
+	}
+
+	// get user
+	ctx, key, err = userEntity.NewKey(ctx, data["email"], false)
+	if err != nil {
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
+	}
+	data, ps, err = userEntity.Get(ctx, key)
+	if err != nil {
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
+	}
+
+	// set new password
+	data["password"] = newPassword
+
+	// update user
+	do, err = userEntity.FromMap(ctx, data)
+	if err != nil {
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
+	}
+	key, err = userEntity.Edit(ctx, key, do.Output)
+	if err != nil {
+		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
+		return
+	}
+
+	NewToken(do.DataMap["namespace"])
+}

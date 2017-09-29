@@ -7,16 +7,6 @@ import (
 	"reflect"
 )
 
-type PreparedEntity struct {
-	Input          map[string]interface{}
-	Ready          map[*Field]interface{}
-	Output         datastore.PropertyList
-	RequiredFields []string
-	Entity         *Ent
-
-	// listeners
-	OnAfterRead func(data map[string]interface{}, list *datastore.PropertyList) (map[string]interface{}, error)
-}
 
 type DataObject struct {
 	DataMap map[string]interface{}
