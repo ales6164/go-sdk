@@ -8,28 +8,28 @@ import (
 )
 
 
-func FuncToFloatTransform(value interface{}) (interface{}, error) {
+func FuncToFloatTransform(c *ValueContext,  value interface{}) (interface{}, error) {
 	if _, ok := value.(float64); ok {
 		return value, nil
 	}
 	return strconv.ParseFloat(value.(string), 64)
 }
 
-func FuncToIntTransform(value interface{}) (interface{}, error) {
+func FuncToIntTransform(c *ValueContext, value interface{}) (interface{}, error) {
 	if _, ok := value.(float64); ok {
 		return value, nil
 	}
 	return strconv.ParseInt(value.(string), 10, 64)
 }
 
-func FuncToAtomTransform(value interface{}) (interface{}, error) {
+func FuncToAtomTransform(c *ValueContext, value interface{}) (interface{}, error) {
 	if _, ok := value.(string); !ok {
 		return value, errors.New("atom-transform: value not of type string")
 	}
 	return search.Atom(value.(string)), nil
 }
 
-func FuncHashTransform(value interface{}) (interface{}, error) {
+func FuncHashTransform(c *ValueContext, value interface{}) (interface{}, error) {
 	return crypt([]byte(value.(string)))
 }
 

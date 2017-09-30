@@ -3,45 +3,186 @@ package sdk
 import (
 	"google.golang.org/appengine/datastore"
 	"fmt"
+	"encoding/json"
+	"strings"
+	"errors"
 )
 
 // PreparedEntity data holder
 type EntityDataHolder struct {
-	Entity *Entity
+	Entity *Entity `json:"-"`
+
+	isNew bool
 
 	data Data // this can be edited by load/save, and conditionally with appendField functions
 }
 
 type Data map[*Field]interface{}
 
-var (
+const (
 	ErrNamedFieldNotDefined                string = "named field '%s' is not defined"
 	ErrDatastoreFieldPropertyMultiDismatch string = "datastore field '%s' doesn't match in property multi"
 	ErrFieldRequired                       string = "field '%s' required"
+	ErrFieldEditPermissionDenied           string = "field '%s' edit permission denied"
+	ErrFieldValueNotValid                  string = "field '%s' value is not valid"
+	ErrFieldValueTypeNotValid              string = "field '%s' value type is not valid"
+	ErrValueIsNil                          string = "field '%s' value is empty"
 )
 
-
-// Appends value
-func (e *EntityDataHolder) unsafeAppendValue(name string, value interface{}) error {
+func (e *EntityDataHolder) Get(name string) interface{} {
 	if field, ok := e.Entity.Fields[name]; ok {
-		if prop.Multiple != field.Multiple {
-			return fmt.Errorf(ErrDatastoreFieldPropertyMultiDismatch, prop.Name)
-		}
-		if field.Multiple {
-			// Todo: Check if this check is necessary
-			if _, ok := e.data[field]; !ok {
-				e.data[field] = []interface{}{}
+		return e.data[field]
+	}
+	return nil
+}
+
+func (e *EntityDataHolder) Output() map[string]interface{} {
+	var output = map[string]interface{}{}
+	var multiples []string
+
+	// range over data. Value can be single value or if the field it Multiple then it's an array
+	for field, value := range e.data {
+
+		if len(field.GroupName) != 0 {
+			if _, ok := output[field.GroupName]; !ok {
+				output[field.GroupName] = map[string]interface{}{}
 			}
-			e.data[field] = append(e.data[field].([]interface{}), prop.Value)
+
+			if field.Multiple {
+				for _, v := range value.([]interface{}) {
+
+					if _, ok := output[field.GroupName].(map[string]interface{})["items"]; !ok {
+						output[field.GroupName] = map[string]interface{}{
+							"LastPropCount": 0,
+							"LastProp":      "",
+							"count":         0,
+							"items":         []map[string]interface{}{},
+						}
+						multiples = append(multiples, field.GroupName)
+					}
+
+					var groupField map[string]interface{} = output[field.GroupName].(map[string]interface{})
+
+					if groupField["LastProp"] != field.Name {
+						groupField["LastPropCount"] = 0
+						groupField["LastProp"] = field.Name
+					} else {
+						groupField["LastPropCount"] = groupField["LastPropCount"].(int) + 1
+					}
+
+					if len(groupField["items"].([]map[string]interface{}))-1 < groupField["LastPropCount"].(int) {
+						groupField["items"] = append(groupField["items"].([]map[string]interface{}), map[string]interface{}{})
+					}
+
+					groupField["items"].([]map[string]interface{})[groupField["LastPropCount"].(int)][field.Name] = v
+					groupField["count"] = len(groupField["items"].([]map[string]interface{}))
+
+					/*delete(groupField, "LastPropCount")
+					delete(groupField, "LastProp")*/
+
+					output[field.GroupName] = groupField
+
+				}
+			} else {
+				output[field.GroupName].(map[string]interface{})[field.Name] = value
+			}
 		} else {
-			e.data[field] = prop.Value
+			output[field.Name] = value
 		}
+	}
+
+	for _, multiName := range multiples {
+		delete(output[multiName].(map[string]interface{}), "LastPropCount")
+		delete(output[multiName].(map[string]interface{}), "LastProp")
+	}
+
+	return output
+}
+
+func (e *EntityDataHolder) FlatOutput() map[string]interface{} {
+	var output = map[string]interface{}{}
+
+	for field, value := range e.data {
+		if len(field.GroupName) != 0 {
+			output[field.GroupName+strings.Title(field.Name)] = value
+		} else {
+			output[field.Name] = value
+		}
+	}
+
+	return output
+}
+
+func (e *EntityDataHolder) JSON() (string, error) {
+	bs, err := json.Marshal(e.Output())
+	return string(bs), err
+}
+
+// Safely appends value
+func (e *EntityDataHolder) AppendValue(name string, value interface{}) error {
+	if field, ok := e.Entity.Fields[name]; ok {
+		var c = &ValueContext{Field: field, Trust: Base}
+		return e.appendFieldValue(field, value, c)
+	}
+
+	// skip
+	//return fmt.Errorf(ErrNamedFieldNotDefined, name)
+
+	return nil
+}
+
+func (e *EntityDataHolder) appendValue(name string, value interface{}, trust ValueTrust) error {
+	if field, ok := e.Entity.Fields[name]; ok {
+		var c = &ValueContext{Field: field, Trust: trust}
+		return e.appendFieldValue(field, value, c)
+	}
+
+	// skip
+	//return fmt.Errorf(ErrNamedFieldNotDefined, name)
+
+	return nil
+}
+
+// Safely appends value
+func (e *EntityDataHolder) appendFieldValue(field *Field, value interface{}, vc *ValueContext) error {
+	if !e.isNew && field.NoEdits {
+		return fmt.Errorf(ErrFieldEditPermissionDenied, field.datastoreFieldName)
+	}
+
+	var v = value
+	var err error
+	for _, fun := range field.fieldFunc {
+		v, err = fun(vc, v)
+		if err != nil {
+			return err
+		}
+	}
+
+	if v != nil {
+		e.unsafeAppendFieldValue(field, v)
 		return nil
+	}
+
+	return fmt.Errorf(ErrValueIsNil, field.datastoreFieldName)
+}
+
+// UNSAFE Appends value without any checks
+func (e *EntityDataHolder) unsafeAppendFieldValue(field *Field, value interface{}) {
+	if field.Multiple {
+		// Todo: Check if this check is necessary
+		if _, ok := e.data[field]; !ok {
+			e.data[field] = []interface{}{}
+		}
+		if _, ok := e.data[field].([]interface{}); !ok {
+			panic(errors.New("field '" + field.Name + "' value is not []interface{}"))
+		}
+		e.data[field] = append(e.data[field].([]interface{}), value)
 	} else {
-		return fmt.Errorf(ErrNamedFieldNotDefined, name)
+		e.data[field] = value
 	}
 }
 
+// load from datastore properties into Data map
 func (e *EntityDataHolder) Load(ps []datastore.Property) error {
 	e.data = map[*Field]interface{}{}
 	for _, prop := range ps {
@@ -49,16 +190,7 @@ func (e *EntityDataHolder) Load(ps []datastore.Property) error {
 			if prop.Multiple != field.Multiple {
 				return fmt.Errorf(ErrDatastoreFieldPropertyMultiDismatch, prop.Name)
 			}
-			if field.Multiple {
-				// Todo: Check if this check is necessary
-				if _, ok := e.data[field]; !ok {
-					e.data[field] = []interface{}{}
-				}
-				e.data[field] = append(e.data[field].([]interface{}), prop.Value)
-			} else {
-				e.data[field] = prop.Value
-			}
-			return nil
+			e.unsafeAppendFieldValue(field, prop.Value)
 		} else {
 			return fmt.Errorf(ErrNamedFieldNotDefined, prop.Name)
 		}
@@ -66,22 +198,25 @@ func (e *EntityDataHolder) Load(ps []datastore.Property) error {
 	return nil
 }
 
+// load Data map into datastore Property array
 func (e *EntityDataHolder) Save() ([]datastore.Property, error) {
 	var ps []datastore.Property
 
 	// check if required fields are there
 	for _, field := range e.Entity.requiredFields {
 		if _, ok := e.data[field]; !ok {
-			return ps, fmt.Errorf(ErrFieldRequired, field.Name)
+			return ps, fmt.Errorf(ErrFieldRequired, field.datastoreFieldName)
 		}
 	}
 
 	// create datastore property list
 	for field, value := range e.data {
+		// set group name
+
 		if field.Multiple {
 			for _, v := range value.([]interface{}) {
 				ps = append(ps, datastore.Property{
-					Name:     field.Name,
+					Name:     field.datastoreFieldName,
 					Multiple: field.Multiple,
 					Value:    v,
 					NoIndex:  field.NoIndex,
@@ -89,7 +224,7 @@ func (e *EntityDataHolder) Save() ([]datastore.Property, error) {
 			}
 		} else {
 			ps = append(ps, datastore.Property{
-				Name:     field.Name,
+				Name:     field.datastoreFieldName,
 				Multiple: field.Multiple,
 				Value:    value,
 				NoIndex:  field.NoIndex,

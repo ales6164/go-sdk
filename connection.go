@@ -24,24 +24,23 @@ func isAuthorized(ctx Context, key *datastore.Key, hasScope bool) bool {
 	return hasScope
 }
 
-func (e *PreparedEntity) Get(ctx Context, key *datastore.Key) (map[string]interface{}, datastore.PropertyList, error) {
-	var data map[string]interface{}
-	var ps datastore.PropertyList
+func (e *Entity) Get(ctx Context, key *datastore.Key) (EntityDataHolder, error) {
+	var h EntityDataHolder = e.New()
+	h.isNew = false
 	if isAuthorized(ctx, key, ctx.HasScope(ScopeGet)) {
-		err := datastore.Get(ctx.Context, key, &ps)
+		err := datastore.Get(ctx.Context, key, &h)
 		if err != nil {
-			return data, ps, err
+			return h, err
 		}
-		data = e.GetGroupedOutputData(ps)
 		if e.OnAfterRead != nil {
-			data, err = e.OnAfterRead(data, &ps)
+			err = e.OnAfterRead(&h)
 		}
-		return data, ps, err
+		return h, err
 	}
-	return data, ps, ErrNotAuthorized
+	return h, ErrNotAuthorized
 }
 
-func (e *PreparedEntity) Add(ctx Context, key *datastore.Key, ps datastore.PropertyList) (*datastore.Key, error) {
+func (e *Entity) Add(ctx Context, key *datastore.Key, h EntityDataHolder) (*datastore.Key, error) {
 	var err error
 	if isAuthorized(ctx, key, ctx.HasScope(ScopeAdd)) {
 		if !key.Incomplete() {
@@ -50,7 +49,7 @@ func (e *PreparedEntity) Add(ctx Context, key *datastore.Key, ps datastore.Prope
 				err := datastore.Get(tc, key, &tempEnt)
 				if err != nil {
 					if err == datastore.ErrNoSuchEntity {
-						key, err = datastore.Put(tc, key, &ps)
+						key, err = datastore.Put(tc, key, &h)
 						return err
 					}
 					return err
@@ -61,21 +60,21 @@ func (e *PreparedEntity) Add(ctx Context, key *datastore.Key, ps datastore.Prope
 			}, nil)
 
 		} else {
-			key, err = datastore.Put(ctx.Context, key, &ps)
+			key, err = datastore.Put(ctx.Context, key, &h)
 		}
 		return key, err
 	}
 	return key, ErrNotAuthorized
 }
 
-func (e *PreparedEntity) Put(ctx Context, key *datastore.Key, ps datastore.PropertyList) (*datastore.Key, error) {
+func (e *Entity) Put(ctx Context, key *datastore.Key, h EntityDataHolder) (*datastore.Key, error) {
 	if isAuthorized(ctx, key, ctx.HasScope(ScopePut)) {
-		return datastore.Put(ctx.Context, key, &ps)
+		return datastore.Put(ctx.Context, key, &h)
 	}
 	return key, ErrNotAuthorized
 }
 
-func (e *PreparedEntity) Edit(ctx Context, key *datastore.Key, ps datastore.PropertyList) (*datastore.Key, error) {
+func (e *Entity) Edit(ctx Context, key *datastore.Key, h EntityDataHolder) (*datastore.Key, error) {
 	var err error
 	if isAuthorized(ctx, key, ctx.HasScope(ScopeEdit)) {
 		if !key.Incomplete() {
@@ -86,7 +85,7 @@ func (e *PreparedEntity) Edit(ctx Context, key *datastore.Key, ps datastore.Prop
 					return err
 				}
 
-				key, err = datastore.Put(tc, key, &ps)
+				key, err = datastore.Put(tc, key, &h)
 				return err
 			}, nil)
 		} else {
@@ -95,193 +94,4 @@ func (e *PreparedEntity) Edit(ctx Context, key *datastore.Key, ps datastore.Prop
 		return key, err
 	}
 	return key, ErrNotAuthorized
-}
-
-func (e *PreparedEntity) GetOutputData(list datastore.PropertyList) map[string]interface{} {
-	var data = map[string]interface{}{}
-	for _, prop := range list {
-		if field, ok := e.Entity.Fields[prop.Name]; ok {
-			if field.Json == NoJsonOutput {
-				continue
-			}
-
-			var name = string(field.Json)
-
-			if len(field.GroupName) == 0 {
-				if field.Multiple {
-					if _, ok := data[name]; !ok {
-						data[name] = []interface{}{}
-					}
-					data[name] = append(data[name].([]interface{}), prop.Value)
-				} else {
-					data[name] = prop.Value
-				}
-			} else {
-				if _, ok := data[field.GroupName]; !ok {
-					data[field.GroupName] = map[string]interface{}{}
-				}
-
-				if field.Multiple {
-					if _, ok := data[field.GroupName].(map[string]interface{})[name]; !ok {
-						data[field.GroupName].(map[string]interface{})[name] = []interface{}{}
-					}
-					data[field.GroupName].(map[string]interface{})[name] = append(data[field.GroupName].(map[string]interface{})[name].([]interface{}), prop.Value)
-				} else {
-					data[field.GroupName].(map[string]interface{})[name] = prop.Value
-				}
-			}
-		}
-	}
-	return data
-}
-
-func (e *PreparedEntity) GetGroupedOutputData(list datastore.PropertyList) map[string]interface{} {
-	var data = map[string]interface{}{}
-
-	for _, prop := range list {
-		if field, ok := e.Entity.Fields[prop.Name]; ok {
-			if field.Json == NoJsonOutput {
-				continue
-			}
-
-			var name = string(field.Json)
-			var isGrouped bool
-			if len(field.GroupName) != 0 {
-				isGrouped = true
-			}
-
-			if field.Multiple {
-				if isGrouped {
-
-					if _, ok := data[field.GroupName]; !ok {
-						data[field.GroupName] = map[string]interface{}{
-							"LastPropCount": 0,
-							"LastProp":      "",
-							"count":         0,
-							"items":         []map[string]interface{}{},
-						}
-					}
-
-					var groupField map[string]interface{} = data[field.GroupName].(map[string]interface{})
-
-					if groupField["LastProp"] != name {
-						groupField["LastPropCount"] = 0
-						groupField["LastProp"] = name
-					} else {
-						groupField["LastPropCount"] = groupField["LastPropCount"].(int) + 1
-					}
-
-					if len(groupField["items"].([]map[string]interface{}))-1 < groupField["LastPropCount"].(int) {
-						groupField["items"] = append(groupField["items"].([]map[string]interface{}), map[string]interface{}{})
-					}
-
-					groupField["items"].([]map[string]interface{})[groupField["LastPropCount"].(int)][name] = prop.Value
-					groupField["count"] = len(groupField["items"].([]map[string]interface{}))
-
-					/*delete(groupField, "LastPropCount")
-					delete(groupField, "LastProp")*/
-
-					data[field.GroupName] = groupField
-				} else {
-					if _, ok := data[name]; !ok {
-						data[name] = []interface{}{}
-					}
-					data[name] = append(data[name].([]interface{}), prop.Value)
-				}
-
-			} else {
-				if isGrouped {
-					if _, ok := data[field.GroupName]; !ok {
-						data[field.GroupName] = map[string]interface{}{}
-					}
-
-					data[field.GroupName].(map[string]interface{})[name] = prop.Value
-				} else {
-					data[name] = prop.Value
-				}
-
-			}
-		}
-	}
-
-	return data
-}
-
-func (e *PreparedEntity) GetData(list datastore.PropertyList) (map[string]interface{}, interface{}) {
-	var data = map[string]interface{}{}
-	var err interface{}
-
-	for _, prop := range list {
-		if field, ok := e.Entity.Fields[prop.Name]; ok {
-			if field.Json == NoJsonOutput {
-				continue
-			}
-
-			var name = string(field.Json)
-			if len(name) == 0 {
-				name = field.Name
-			}
-			var isGrouped bool
-			if len(field.GroupName) != 0 {
-				isGrouped = true
-			}
-
-			if field.Multiple {
-				if isGrouped {
-
-					if _, ok := data[field.GroupName]; !ok {
-						data[field.GroupName] = map[string]interface{}{
-							"LastPropCount": 0,
-							"LastProp":      "",
-							"count":         0,
-							"items":         []map[string]interface{}{},
-						}
-					}
-
-					var groupField map[string]interface{} = data[field.GroupName].(map[string]interface{})
-
-					if groupField["LastProp"] != name {
-						groupField["LastPropCount"] = 0
-						groupField["LastProp"] = name
-					} else {
-						groupField["LastPropCount"] = groupField["LastPropCount"].(int) + 1
-					}
-
-					if len(groupField["items"].([]map[string]interface{}))-1 < groupField["LastPropCount"].(int) {
-						groupField["items"] = append(groupField["items"].([]map[string]interface{}), map[string]interface{}{})
-					}
-
-					groupField["items"].([]map[string]interface{})[groupField["LastPropCount"].(int)][name] = prop.Value
-					groupField["count"] = len(groupField["items"].([]map[string]interface{}))
-
-					/*delete(groupField, "LastPropCount")
-					delete(groupField, "LastProp")*/
-
-					data[field.GroupName] = groupField
-				} else {
-					if _, ok := data[name]; !ok {
-						data[name] = []interface{}{}
-					}
-					if _, ok := data[name].([]interface{}); !ok {
-						return data, name
-					}
-					data[name] = append(data[name].([]interface{}), prop.Value)
-				}
-
-			} else {
-				if isGrouped {
-					if _, ok := data[field.GroupName]; !ok {
-						data[field.GroupName] = map[string]interface{}{}
-					}
-
-					data[field.GroupName].(map[string]interface{})[name] = prop.Value
-				} else {
-					data[name] = prop.Value
-				}
-
-			}
-		}
-	}
-
-	return data, err
 }
