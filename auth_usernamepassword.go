@@ -55,9 +55,9 @@ func init() {
 				},
 			},
 			{
-				Name:    "namespace",
+				Name:       "namespace",
 				IsRequired: true,
-				NoEdits: true,
+				NoEdits:    true,
 				ValueFunc: func() interface{} {
 					return uuid.New().String()
 				},
@@ -249,7 +249,7 @@ func Register(ctx Context) (Token, map[string]interface{}, error) {
 	}
 
 	// Add user
-	data, err := userEntity.FromForm(ctx)
+	d, err := userEntity.FromForm(ctx)
 	if err != nil {
 		return id_token, nil, err
 	}
@@ -259,17 +259,17 @@ func Register(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, err
 	}
 
-	ctx, key, err := userEntity.NewKey(ctx, data.Get("email"), false)
+	ctx, key, err := userEntity.NewKey(ctx, d.Get("email"), false)
 	if err != nil {
 		return id_token, nil, err
 	}
 
-	ctx, profileKey, err := profileEntity.NewKey(ctx, data.Get("email"), false)
+	ctx, profileKey, err := profileEntity.NewKey(ctx, d.Get("email"), false)
 	if err != nil {
 		return id_token, nil, err
 	}
 
-	key, err = userEntity.Add(ctx, key, data)
+	key, err = userEntity.Add(ctx, key, d)
 	if err != nil {
 		if err == EntityAlreadyExists {
 			// todo
@@ -277,8 +277,6 @@ func Register(ctx Context) (Token, map[string]interface{}, error) {
 		}
 		return id_token, nil, err
 	}
-
-	d := data.Output()
 
 	profileKey, err = profileEntity.Add(ctx, profileKey, profileData)
 	if err != nil {
@@ -289,16 +287,17 @@ func Register(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, err
 	}
 
+	var data = d.Output()
 	for name, value := range profileData.Output() {
-		d[name] = value
+		data[name] = value
 	}
 
-	id_token, err = NewToken(d["namespace"].(string), d["email"].(string))
+	id_token, err = NewToken(data["namespace"].(string), data["email"].(string))
 	if err != nil {
 		return id_token, nil, err
 	}
 
-	return id_token, d, err
+	return id_token, data, err
 }
 
 func Login(ctx Context) (Token, map[string]interface{}, error) {
@@ -338,15 +337,16 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, err
 	}
 
+	var data = d.Output()
 	for name, value := range profileD.Output() {
-		d.AppendValue(name, value)
+		data[name] = value
 	}
 
 	id_token, err = NewToken(d.Get("namespace").(string), d.Get("email").(string))
 	if err != nil {
 		return id_token, nil, err
 	}
-	return id_token, d.Output(), err
+	return id_token, data, err
 }
 
 var recoverAccountEmailTemplate *template.Template
