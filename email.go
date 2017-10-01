@@ -6,7 +6,7 @@ import (
 	"bytes"
 )
 
-func (c *Context) sendEmail(message *mail.Message, t *template.Template, data interface{}) error {
+func (c *Context) SendEmail(message *mail.Message, t *template.Template, data interface{}) error {
 	buf := new(bytes.Buffer)
 	defer buf.Reset()
 	t.ExecuteTemplate(buf, "email", data)

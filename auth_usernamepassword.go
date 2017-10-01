@@ -6,12 +6,10 @@ import (
 	"net/http"
 	"errors"
 	"github.com/google/uuid"
-	"html/template"
-	"google.golang.org/appengine/mail"
 )
 
-var userEntity *Entity
-var profileEntity *Entity
+var UserEntity *Entity
+var ProfileEntity *Entity
 var lostPasswordRequest *Entity
 
 func init() {
@@ -37,7 +35,7 @@ func init() {
 				DefaultValue: true,
 			},
 		})
-	userEntity = NewEntity("user",
+	UserEntity = NewEntity("user",
 		[]*Field{
 			{
 				Name:    "created",
@@ -73,7 +71,7 @@ func init() {
 				TransformFunc: FuncHashTransform,
 			},
 		})
-	profileEntity = NewEntity("profile",
+	ProfileEntity = NewEntity("profile",
 		[]*Field{
 			{
 				Name:    "created",
@@ -144,13 +142,13 @@ func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, key, err := profileEntity.NewKey(ctx, ctx.User, false)
+	ctx, key, err := ProfileEntity.NewKey(ctx, ctx.User, false)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	d, err := profileEntity.Get(ctx, key)
+	d, err := ProfileEntity.Get(ctx, key)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
@@ -165,12 +163,12 @@ func GetUserProfile(r *http.Request) (map[string]interface{}, error) {
 		return nil, ErrNotAuthenticated
 	}
 
-	ctx, key, err := profileEntity.NewKey(ctx, ctx.User, false)
+	ctx, key, err := ProfileEntity.NewKey(ctx, ctx.User, false)
 	if err != nil {
 		return nil, err
 	}
 
-	d, err := profileEntity.Get(ctx, key)
+	d, err := ProfileEntity.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -189,19 +187,19 @@ func EditUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h, err := profileEntity.FromForm(ctx)
+	h, err := ProfileEntity.FromForm(ctx)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	ctx, key, err := profileEntity.NewKey(ctx, ctx.User, false)
+	ctx, key, err := ProfileEntity.NewKey(ctx, ctx.User, false)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	key, err = profileEntity.Edit(ctx, key, h)
+	key, err = ProfileEntity.Edit(ctx, key, h)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
@@ -249,27 +247,27 @@ func Register(ctx Context) (Token, map[string]interface{}, error) {
 	}
 
 	// Add user
-	d, err := userEntity.FromForm(ctx)
+	d, err := UserEntity.FromForm(ctx)
 	if err != nil {
 		return id_token, nil, err
 	}
 
-	profileData, err := profileEntity.FromForm(ctx)
+	profileData, err := ProfileEntity.FromForm(ctx)
 	if err != nil {
 		return id_token, nil, err
 	}
 
-	ctx, key, err := userEntity.NewKey(ctx, d.Get("email"), false)
+	ctx, key, err := UserEntity.NewKey(ctx, d.Get("email"), false)
 	if err != nil {
 		return id_token, nil, err
 	}
 
-	ctx, profileKey, err := profileEntity.NewKey(ctx, d.Get("email"), false)
+	ctx, profileKey, err := ProfileEntity.NewKey(ctx, d.Get("email"), false)
 	if err != nil {
 		return id_token, nil, err
 	}
 
-	key, err = userEntity.Add(ctx, key, d)
+	key, err = UserEntity.Add(ctx, key, d)
 	if err != nil {
 		if err == EntityAlreadyExists {
 			// todo
@@ -278,7 +276,7 @@ func Register(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, err
 	}
 
-	profileKey, err = profileEntity.Add(ctx, profileKey, profileData)
+	profileKey, err = ProfileEntity.Add(ctx, profileKey, profileData)
 	if err != nil {
 		if err == EntityAlreadyExists {
 			// todo
@@ -307,17 +305,17 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, ErrAlreadyAuthenticated
 	}
 
-	do, err := userEntity.FromForm(ctx)
+	do, err := UserEntity.FromForm(ctx)
 	if err != nil {
 		return id_token, nil, err
 	}
 
-	ctx, key, err := userEntity.NewKey(ctx, do.Get("email"), false)
+	ctx, key, err := UserEntity.NewKey(ctx, do.Get("email"), false)
 	if err != nil {
 		return id_token, nil, err
 	}
 
-	d, err := userEntity.Get(ctx, key)
+	d, err := UserEntity.Get(ctx, key)
 	if err != nil {
 		return id_token, nil, err
 	}
@@ -327,12 +325,12 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, ErrNotAuthorized
 	}
 
-	ctx, profileKey, err := profileEntity.NewKey(ctx, do.Get("email"), false)
+	ctx, profileKey, err := ProfileEntity.NewKey(ctx, do.Get("email"), false)
 	if err != nil {
 		return id_token, nil, err
 	}
 
-	profileD, err := profileEntity.Get(ctx, profileKey)
+	profileD, err := ProfileEntity.Get(ctx, profileKey)
 	if err != nil {
 		return id_token, nil, err
 	}
@@ -349,129 +347,3 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 	return id_token, data, err
 }
 
-var recoverAccountEmailTemplate *template.Template
-
-func init() {
-	recoverAccountEmailTemplate, _ = template.New("").ParseFiles("lost_password.html")
-}
-
-func CreateLostPasswordRequestHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := NewContext(r).WithScopes(ScopeGet, ScopeAdd)
-
-	email := r.FormValue("email")
-	if !govalidator.IsEmail(email) {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-
-	ctx, key, err := userEntity.NewKey(ctx, email, false)
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-
-	// check if user exists
-	_, err = userEntity.Get(ctx, key)
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-
-	ctx, key = lostPasswordRequest.NewIncompleteKey(ctx, false)
-	do, err := lostPasswordRequest.FromMap(ctx, map[string]interface{}{
-		"email": email,
-	})
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-
-	key, err = lostPasswordRequest.Add(ctx, key, do)
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-
-	// send recovery email with encoded key
-	err = ctx.sendEmail(&mail.Message{
-		Sender:  "Tisk Daril <no-reply@tiskdaril.appspotmail.com>",
-		To:      []string{email},
-		Subject: "Zahtevek za spremembo gesla",
-	}, recoverAccountEmailTemplate, key.Encode())
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-
-	ctx.Print(w, "success")
-}
-
-func UpdatePasswordHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := NewContext(r).WithScopes(ScopeGet, ScopeEdit)
-
-	// get form values
-	encoded := r.FormValue("key")
-	newPassword := r.FormValue("password")
-
-	// decode key
-	ctx, key, err := lostPasswordRequest.DecodeKey(ctx, encoded)
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-
-	// get lost password datastore entry
-	data, err := lostPasswordRequest.Get(ctx, key)
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-
-	// check if the request is still valid
-	if !data.Get("isUnused").(bool) && !data.Get("created").(time.Time).After(time.Now().Add(-24 * time.Hour)) {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-
-	// set request invalid
-	data.AppendValue("isUnused", false)
-	do, err := lostPasswordRequest.FromMap(ctx, data.Output())
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-	key, err = lostPasswordRequest.Edit(ctx, key, do)
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-
-	// get user
-	ctx, key, err = userEntity.NewKey(ctx, data.Get("email"), false)
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-	data, err = userEntity.Get(ctx, key)
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-
-	// set new password
-	data.AppendValue("password", newPassword)
-
-	// update user
-	do, err = userEntity.FromMap(ctx, data.Output())
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-	key, err = userEntity.Edit(ctx, key, do)
-	if err != nil {
-		ctx.PrintError(w, ErrNotAuthorized, http.StatusBadRequest)
-		return
-	}
-
-	NewToken(do.Get("namespace").(string), do.Get("email").(string))
-}
