@@ -18,7 +18,9 @@ func AdminDashboard(a *SDK) {
 	subRouter = a.Router.PathPrefix("/admin").Subrouter()
 	adminMiddleware = AdminMiddleware(a.SigningKey)
 
-	subRouter.Handle("/", adminMiddleware.Handler(http.HandlerFunc(AdminDashboardHandler)))
+	fs := http.FileServer(http.Dir("web/dist"))
+
+	subRouter.Handle("/", adminMiddleware.Handler(fs))
 	subRouter.Handle("/sign-in", http.HandlerFunc(AdminLoginHandler))
 }
 
@@ -39,9 +41,7 @@ func AdminMiddleware(signingKey []byte) *JWTMiddleware {
 	})
 }
 
-func AdminDashboardHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Dashboard")
-}
+
 
 func AdminLoginHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Sign In")

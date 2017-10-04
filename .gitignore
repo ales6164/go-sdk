@@ -5,6 +5,8 @@
 # IntelliJ project files
 .idea
 *.iml
+
+node_modules
 out
 gen### Go template
 # Binaries for programs and plugins
@@ -13,8 +15,7 @@ gen### Go template
 *.so
 *.dylib
 
-node_modules
-dist/
+
 .tmp
 app.yaml
 
