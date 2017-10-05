@@ -17,9 +17,9 @@ gulp.task('babel', function () {
 
 gulp.task('sass', function () {
     return gulp.src('./src/assets/css/*.scss')
-        .pipe(sourcemaps.init())
+        /*.pipe(sourcemaps.init())*/
         .pipe(sass({outputStyle: 'compressed'}).on('error', sass.logError))
-        .pipe(sourcemaps.write('./'))
+        /*.pipe(sourcemaps.write('./'))*/
         .pipe(gulp.dest('dist/assets/css'))
         .pipe(minifyCss({                             // minify CSS
             keepSpecialComments: 0                    // remove all comments
@@ -45,7 +45,7 @@ gulp.task('default', function () {
 
 gulp.task('serve', ['sass', 'babel', 'copy'], function () {
     browserSync.init({
-        port: 8080,
+        port: 3000,
         server: {
             baseDir: 'dist',
             middleware: [

@@ -2,28 +2,39 @@
  * Dependencies: axios.js, navigo.js
  */
 class Router {
+    get listeners() {
+        return {
+            app: {
+                auth: this.onAppAuth
+            }
+        }
+    }
+
     constructor() {
         (function (ctx) {
-            ctx.navigo = new Navigo(null, false);
-            ctx.navigo.on({
+            Router.navigo = new Navigo(null, false);
+            Router.navigo.on({
                 'dashboard': function () {
-                    ctx.renderPage('dashboard');
+                    ctx.renderPage('dashboard', true);
+                },
+                'entities/:kind/:id': function (params) {
+                    //ctx.renderPage('entityListView', true, params.kind);
                 },
                 'entities/:kind': function (params) {
-                    ctx.renderPage('entityListView', params.kind);
+                    ctx.renderPage('entityListView', true, params.kind);
                 },
                 'entities': function (params) {
-                    ctx.renderPage('entities');
+                    ctx.renderPage('entities', true);
                 },
                 '': function (params) {
-                    ctx.navigo.navigate('/dashboard')
+                    Router.navigo.navigate('/dashboard', true)
                 },
                 '*': function (params) {
                     ctx.renderPage('notFound');
                 }
             });
 
-            ctx.navigo.hooks({
+            Router.navigo.hooks({
                 after: function (done, params) {
                     ctx.push('after', params)
                 }
@@ -33,15 +44,17 @@ class Router {
         // axios instance
         this.ajax = axios.create({
             baseURL: '/components/',
-            timeout: 1000,
+            timeout: 5000
         });
     }
 
-    render() {
-        this.navigo.resolve();
-    }
+    render() {}
 
-    renderPage(componentName, data) {
+    renderPage(componentName, needsAuthorization, data) {
+        if (needsAuthorization && !this.profile) {
+            componentName = 'login';
+        }
+
         (function (ctx) {
             if (customComponents.hasComponent(componentName)) {
                 customComponents.renderComponent(componentName, ctx.element, data);
@@ -63,6 +76,13 @@ class Router {
                     });
             }
         })(this);
+    }
+
+    onAppAuth(profile) {
+        console.log("listened");
+
+        this.profile = profile;
+        Router.navigo.resolve();
     }
 }
 

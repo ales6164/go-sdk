@@ -16,6 +16,9 @@ const customComponents = new function () {
 
             if(componentClass) {
                 componentClass.prototype.element = node;
+                componentClass.prototype.renderImports = function (dataObject) {
+                    ctx.render(this.imports, this.element, dataObject);
+                };
                 componentClass.prototype.push = function (event, data, onlyOnce) {
                     ctx.eventHolder.notify(name, event, data, onlyOnce)
                 };
@@ -87,7 +90,7 @@ const customComponents = new function () {
                     var i = 0;
                     if (this.listeners[type][event].ready) {
                         for (i; i < this.listeners[type][event].data.length; i++) {
-                            f(this.listeners[type][event].data[i])
+                            f.call(ctx, this.listeners[type][event].data[i])
                         }
                     }
                     this.listeners[type][event].todo.push({f: f, i: i, c: ctx});

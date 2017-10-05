@@ -44,8 +44,8 @@ func (s *MyServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	s.h.ServeHTTP(w, req)
 }
 
-func NewApp(opt AppOptions) SDK {
-	a := SDK{
+func NewApp(opt AppOptions) *SDK {
+	a := &SDK{
 		AppOptions: &opt,
 		Router:     mux.NewRouter(),
 	}
@@ -74,6 +74,34 @@ func NewApp(opt AppOptions) SDK {
 
 		ctx.PrintError(w, ErrNotAuthenticated, http.StatusNetworkAuthenticationRequired)
 	}).Methods(http.MethodPost)
+
+	// authorize and get user profile
+	a.HandleFunc("/api/auth", func(w http.ResponseWriter, r *http.Request) {
+		ctx := NewContext(r).WithScopes(ScopeGet)
+		if ctx.err != nil {
+			ctx.PrintError(w, ctx.err, http.StatusInternalServerError)
+			return
+		}
+		if ctx.IsAuthenticated {
+
+			ctx, key, err := ProfileEntity.NewKey(ctx, ctx.User, false)
+			if err != nil {
+				ctx.PrintError(w, err, http.StatusInternalServerError)
+				return
+			}
+
+			d, err := ProfileEntity.Get(ctx, key)
+			if err != nil {
+				ctx.PrintError(w, err, http.StatusInternalServerError)
+				return
+			}
+
+			ctx.Print(w, d.Output())
+			return
+		}
+
+		ctx.PrintError(w, ErrNotAuthenticated, http.StatusUnauthorized)
+	}).Methods(http.MethodGet)
 
 	return a
 }

@@ -1,3 +1,10 @@
 .content {
-  flex-grow: 1;
+  width: 100%;
+  max-width: 21cm;
+  overflow: auto;
+}
+
+.content-fluid {
+  max-width: 21cm;
+  overflow: auto;
 }
