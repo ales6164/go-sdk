@@ -1,0 +1,113 @@
+@import "site";
+@import "colors";
+@import "cards";
+@import "inputs";
+@import "prettyTable";
+
+.main-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 60px;
+  background-color: $inverse;
+  color: $color4;
+
+  .logo {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.header-menu {
+  position: relative;
+  //padding: 16px 0;
+
+  .menu-btn {
+    display: block;
+    text-align: center;
+    width: 100%;
+    background-color: $bg1;
+    border-top: 1px solid $gray3;
+    border-bottom: 1px solid $gray3;
+
+    > i {
+      padding: 12px 0;
+    }
+  }
+}
+
+.menu {
+  &[expanded] {
+    display: block;
+  }
+
+  display: none;
+  position: absolute;
+  background-color: $bg1;
+  overflow: auto;
+  left: 0;
+  right: 0;
+  z-index: 10;
+
+  a {
+    display: block;
+    padding: 12px 24px;
+    text-decoration: none;
+    text-transform: uppercase;
+    color: #2e2e2e;
+    font-size: 14px;
+    line-height: 20px;
+    font-family: Montserrat, sans-serif;
+
+    > i.fa {
+      width: 24px;
+    }
+  }
+
+  > a {
+    border-top: 1px solid lightgray;
+  }
+
+  > a:first-child {
+    border-top: none;
+  }
+
+  a + div.drop {
+    padding-left: 24px;
+  }
+
+  a.drop-next:after {
+    padding-left: 8px;
+    font: normal normal normal 14px/1 FontAwesome;
+    content: "\f107";
+  }
+
+  a.drop-next[expanded]:after {
+    padding-left: 8px;
+    font: normal normal normal 14px/1 FontAwesome;
+    content: "\f106";
+  }
+
+  &.drop, .drop {
+    display: none;
+    overflow: hidden;
+  }
+
+}
+
+.header-menu, .menu {
+  .drop-next[expanded] + .drop {
+    display: block;
+  }
+}
+
+.main-content {
+  max-width: 100vw;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 1;
+  flex-grow: 1;
+  align-items: center;
+  overflow: hidden;
+}
+

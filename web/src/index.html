@@ -1,0 +1,40 @@
+<html>
+<head>
+    <base href="/">
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>My Admin Page</title>
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,300,100,500,700,900" rel="stylesheet"
+          type="text/css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <link href="assets/css/main.min.css" rel="stylesheet" type="text/css">
+    <link href="assets/css/content.min.css" rel="stylesheet" type="text/css">
+
+    <!-- Ajax requests with promises -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script src="components/custom.js"></script>
+    <script src="components/app.js"></script>
+    <script src="components/form.js"></script>
+    <script src="components/menu.js"></script>
+
+    <script src="assets/js/navigo.min.js"></script>
+    <script src="components/router.js"></script>
+</head>
+<body class="site">
+
+<div class="-app">
+    <div class="spinner">Loading ...</div>
+</div>
+
+<script>
+    customComponents.render(['app'], document);
+    customComponents.eventHolder.unhalt();
+</script>
+<script src="main.js"></script>
+</body>
+</html>
