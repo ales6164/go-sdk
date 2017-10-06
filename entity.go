@@ -7,15 +7,20 @@ import (
 	"errors"
 	"github.com/asaskevich/govalidator"
 	"reflect"
+	"google.golang.org/appengine/delay"
+	"golang.org/x/net/context"
+	"google.golang.org/appengine/log"
 )
 
 type Entity struct {
 	Name   string
 	Fields map[string]*Field
 
-	preparedData map[*Field]func(*Field)interface{}
+	preparedData map[*Field]func(*Field) interface{}
 
 	requiredFields []*Field
+
+	indexes map[string]*DocumentDefinition
 
 	// listeners
 	OnAfterRead func(h *EntityDataHolder) (error)
@@ -24,8 +29,9 @@ type Entity struct {
 func NewEntity(name string, fields []*Field) *Entity {
 	var e = new(Entity)
 	e.Name = name
+	e.indexes = map[string]*DocumentDefinition{}
 
-	e.preparedData = map[*Field]func(*Field)interface{}{}
+	e.preparedData = map[*Field]func(*Field) interface{}{}
 
 	e.Fields = map[string]*Field{}
 	for _, field := range fields {
@@ -110,11 +116,39 @@ func NewEntity(name string, fields []*Field) *Entity {
 	return e
 }
 
+/**
+Adds index document definition and subscribes it to data changes
+ */
+func (e *Entity) AddIndex(dd *DocumentDefinition) {
+	e.indexes[dd.Name] = dd
+}
+
+var putToIndex = delay.Func(RandStringBytesMaskImprSrc(16), func(ctx context.Context, dd DocumentDefinition, id string, data Data) {
+	dd.Put(ctx, id, flatOutput(data))
+})
+var removeFromIndex = delay.Func(RandStringBytesMaskImprSrc(16), func(ctx context.Context, dd DocumentDefinition) {
+	// do something expensive!
+})
+
+func (e *Entity) PutToIndexes(ctx context.Context, id string, data EntityDataHolder) {
+	for _, dd := range e.indexes {
+		err := putToIndex.Call(ctx, *dd, id, data.data)
+		if err != nil {
+			log.Errorf(ctx, "%v", err.Error())
+		}
+	}
+}
+func (e *Entity) RemoveFromIndexes(ctx context.Context) {
+	for _, dd := range e.indexes {
+		removeFromIndex.Call(ctx, *dd)
+	}
+}
+
 func (e *Entity) New() EntityDataHolder {
 	var dataHolder = EntityDataHolder{
 		Entity: e,
 		data:   Data{},
-		isNew: true,
+		isNew:  true,
 	}
 
 	// copy prepared values

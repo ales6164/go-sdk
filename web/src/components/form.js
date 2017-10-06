@@ -39,7 +39,18 @@ class Form {
                 e.preventDefault();
                 ctx.submitBtn.disabled = true;
                 ctx.btnText = ctx.config.loadingText;
-                cb(new FormData(this), done(ctx))
+
+                let fd = new FormData(this);
+
+                if (ctx.config.formDataToMap) {
+                    let result = {};
+                    for (let entry of fd.entries()) {
+                        result[entry[0]] = entry[1];
+                    }
+                    cb(result, done(ctx))
+                } else {
+                    cb(fd, done(ctx))
+                }
             };
 
             ctx.form.addEventListener('submit', ctx.listener)

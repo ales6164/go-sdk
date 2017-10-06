@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"strings"
 	"errors"
+	"encoding/gob"
+	"time"
 )
 
 // PreparedEntity data holder
@@ -29,6 +31,10 @@ const (
 	ErrValueIsNil                          string = "field '%s' value is empty"
 )
 
+func init() {
+	gob.Register(time.Now())
+}
+
 func (e *EntityDataHolder) Get(name string) interface{} {
 	if field, ok := e.Entity.Fields[name]; ok {
 		return e.data[field]
@@ -36,12 +42,12 @@ func (e *EntityDataHolder) Get(name string) interface{} {
 	return nil
 }
 
-func (e *EntityDataHolder) Output() map[string]interface{} {
+func output(data Data) map[string]interface{} {
 	var output = map[string]interface{}{}
 	var multiples []string
 
 	// range over data. Value can be single value or if the field it Multiple then it's an array
-	for field, value := range e.data {
+	for field, value := range data {
 
 		if len(field.GroupName) != 0 {
 			if _, ok := output[field.GroupName]; !ok {
@@ -99,10 +105,10 @@ func (e *EntityDataHolder) Output() map[string]interface{} {
 	return output
 }
 
-func (e *EntityDataHolder) FlatOutput() map[string]interface{} {
+func flatOutput(data Data) map[string]interface{} {
 	var output = map[string]interface{}{}
 
-	for field, value := range e.data {
+	for field, value := range data {
 		if len(field.GroupName) != 0 {
 			output[field.GroupName+strings.Title(field.Name)] = value
 		} else {
@@ -111,6 +117,14 @@ func (e *EntityDataHolder) FlatOutput() map[string]interface{} {
 	}
 
 	return output
+}
+
+func (e *EntityDataHolder) Output() map[string]interface{} {
+	return output(e.data)
+}
+
+func (e *EntityDataHolder) FlatOutput() map[string]interface{} {
+	return flatOutput(e.data)
 }
 
 func (e *EntityDataHolder) JSON() (string, error) {

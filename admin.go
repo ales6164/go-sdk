@@ -14,14 +14,54 @@ var session *sessions.CookieStore
 var subRouter *mux.Router
 var adminMiddleware *JWTMiddleware
 
+const adminDir = "admin/dist"
+
 func AdminDashboard(a *SDK) {
-	subRouter = a.Router.PathPrefix("/admin").Subrouter()
-	adminMiddleware = AdminMiddleware(a.SigningKey)
+	/*fs := http.FileServer(http.Dir(adminDir))
 
-	fs := http.FileServer(http.Dir("web/dist"))
+	a.Router.HandleFunc("/admin", func(w http.ResponseWriter, r *http.Request) {
+		if a.installed {
+			fs.ServeHTTP(w, r)
+			//http.Redirect(w, r, "/admin", http.StatusPermanentRedirect)
+			return
+		}
 
-	subRouter.Handle("/", adminMiddleware.Handler(fs))
-	subRouter.Handle("/sign-in", http.HandlerFunc(AdminLoginHandler))
+		ctx := appengine.NewContext(r)
+		client := urlfetch.Client(ctx)
+		resp, err := client.Get("https://storage.googleapis.com/tiskdaril.appspot.com/dist.zip")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		var fileName = "_temp-admin.zip"
+
+		defer resp.Body.Close()
+		out, err := os.Create(fileName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer out.Close()
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		err = Unzip(fileName, adminDir)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		a.installed = true
+
+		fs.ServeHTTP(w, r)
+	})*/
+
+	//a.Router.PathPrefix("/admin").Handler(fs)
+	//subRouter.Handle("/sign-in", http.HandlerFunc(AdminLoginHandler))
 }
 
 func AdminMiddleware(signingKey []byte) *JWTMiddleware {
@@ -40,8 +80,6 @@ func AdminMiddleware(signingKey []byte) *JWTMiddleware {
 		CredentialsOptional: true,
 	})
 }
-
-
 
 func AdminLoginHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Sign In")

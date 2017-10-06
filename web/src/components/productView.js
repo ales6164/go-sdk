@@ -1,4 +1,4 @@
-class EntityListView {
+class ProductView {
 
     template(url, fields, data) {
         const header = `<style>
@@ -96,4 +96,4 @@ ${header}
 
 }
 
-customComponents.define('entityListView', EntityListView);
+customComponents.define('productView', ProductView);

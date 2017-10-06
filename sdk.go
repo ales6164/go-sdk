@@ -14,10 +14,12 @@ type SDK struct {
 	Router       *mux.Router
 	middleware   *JWTMiddleware
 	sessionStore *sessions.CookieStore
+
+	installed bool
 }
 
 type AppOptions struct {
-	SigningKey         []byte
+	SigningKey []byte
 }
 
 type Config struct {

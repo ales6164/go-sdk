@@ -98,6 +98,7 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h EntityDataHolder) (*data
 				if err != nil {
 					if err == datastore.ErrNoSuchEntity {
 						key, err = datastore.Put(tc, key, &h)
+						e.PutToIndexes(tc, key.Encode(), h)
 						return err
 					}
 					return err
@@ -109,6 +110,7 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h EntityDataHolder) (*data
 
 		} else {
 			key, err = datastore.Put(ctx.Context, key, &h)
+			e.PutToIndexes(ctx.Context, key.Encode(), h)
 		}
 		return key, err
 	}
@@ -117,6 +119,7 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h EntityDataHolder) (*data
 
 func (e *Entity) Put(ctx Context, key *datastore.Key, h EntityDataHolder) (*datastore.Key, error) {
 	if isAuthorized(ctx, key, ctx.HasScope(ScopePut)) {
+		e.PutToIndexes(ctx.Context, key.Encode(), h)
 		return datastore.Put(ctx.Context, key, &h)
 	}
 	return key, ErrNotAuthorized
