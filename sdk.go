@@ -10,11 +10,10 @@ import (
 )
 
 type SDK struct {
+	Router *mux.Router
 	*AppOptions
-	Router       *mux.Router
 	middleware   *JWTMiddleware
 	sessionStore *sessions.CookieStore
-
 	installed bool
 }
 
@@ -49,7 +48,6 @@ func (s *MyServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func NewApp(opt AppOptions) *SDK {
 	a := &SDK{
 		AppOptions: &opt,
-		Router:     mux.NewRouter(),
 	}
 
 	if opt.SigningKey == nil {
@@ -57,13 +55,25 @@ func NewApp(opt AppOptions) *SDK {
 	}
 
 	signingKey = opt.SigningKey
+
+	return a
+}
+
+func (a *SDK) EnableAdminDashboard() {
+	AdminDashboard(a)
+}
+
+// Recommended path "/api/"
+func (a *SDK) Serve(path string) {
+	a.Router = mux.NewRouter().PathPrefix(path).Subrouter()
+
 	a.middleware = AuthMiddleware(signingKey)
 
-	a.HandleFunc("/api/profile", GetUserProfileHandler).Methods(http.MethodGet)
-	a.HandleFunc("/api/profile", EditUserProfileHandler).Methods(http.MethodPut)
-	a.HandleFunc("/api/auth/login", LoginHandler).Methods(http.MethodPost)
-	a.HandleFunc("/api/auth/register", RegisterHandler).Methods(http.MethodPost)
-	a.HandleFunc("/api/auth", func(w http.ResponseWriter, r *http.Request) {
+	a.HandleFunc("/profile", GetUserProfileHandler).Methods(http.MethodGet)
+	a.HandleFunc("/profile", EditUserProfileHandler).Methods(http.MethodPut)
+	a.HandleFunc("/auth/login", LoginHandler).Methods(http.MethodPost)
+	a.HandleFunc("/auth/register", RegisterHandler).Methods(http.MethodPost)
+	a.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r)
 		if ctx.err != nil {
 			ctx.PrintError(w, ctx.err, http.StatusInternalServerError)
@@ -74,11 +84,11 @@ func NewApp(opt AppOptions) *SDK {
 			return
 		}
 
-		ctx.PrintError(w, ErrNotAuthenticated, http.StatusNetworkAuthenticationRequired)
+		ctx.PrintError(w, ErrNotAuthenticated, http.StatusInternalServerError)
 	}).Methods(http.MethodPost)
 
 	// authorize and get user profile
-	a.HandleFunc("/api/auth", func(w http.ResponseWriter, r *http.Request) {
+	a.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r).WithScopes(ScopeGet)
 		if ctx.err != nil {
 			ctx.PrintError(w, ctx.err, http.StatusInternalServerError)
@@ -105,14 +115,7 @@ func NewApp(opt AppOptions) *SDK {
 		ctx.PrintError(w, ErrNotAuthenticated, http.StatusUnauthorized)
 	}).Methods(http.MethodGet)
 
-	return a
-}
 
-func (a *SDK) EnableAdminDashboard() {
-	AdminDashboard(a)
-}
-
-func (a *SDK) Serve(path string) {
 	http.Handle(path, &MyServer{a.Router})
 }
 

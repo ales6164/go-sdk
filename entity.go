@@ -10,6 +10,7 @@ import (
 	"google.golang.org/appengine/delay"
 	"golang.org/x/net/context"
 	"google.golang.org/appengine/log"
+	"encoding/json"
 )
 
 type Entity struct {
@@ -130,7 +131,7 @@ var removeFromIndex = delay.Func(RandStringBytesMaskImprSrc(16), func(ctx contex
 	// do something expensive!
 })
 
-func (e *Entity) PutToIndexes(ctx context.Context, id string, data EntityDataHolder) {
+func (e *Entity) PutToIndexes(ctx context.Context, id string, data *EntityDataHolder) {
 	for _, dd := range e.indexes {
 		err := putToIndex.Call(ctx, *dd, id, data.data)
 		if err != nil {
@@ -144,10 +145,11 @@ func (e *Entity) RemoveFromIndexes(ctx context.Context) {
 	}
 }
 
-func (e *Entity) New() EntityDataHolder {
-	var dataHolder = EntityDataHolder{
+func (e *Entity) New() *EntityDataHolder {
+	var dataHolder = &EntityDataHolder{
 		Entity: e,
 		data:   Data{},
+		input:  map[string]interface{}{},
 		isNew:  true,
 	}
 
@@ -216,8 +218,10 @@ func (e *Entity) NewKey(c Context, nameId interface{}, withNamespace bool) (Cont
 	return c, key, err
 }
 
-func (e *Entity) FromForm(c Context) (EntityDataHolder, error) {
-	var h = e.New()
+func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
+	var h *EntityDataHolder
+
+	return e.FromBody(c)
 
 	// todo: fix this
 	c.r.FormValue("a")
@@ -227,24 +231,47 @@ func (e *Entity) FromForm(c Context) (EntityDataHolder, error) {
 		return h, err
 	}
 
-	for name, values := range c.r.Form {
+	if len(c.r.Form) != 0 {
+		h = e.New()
+		for name, values := range c.r.Form {
 
-		// remove '[]' from fieldName if it's an array
-		if len(name) > 2 && name[len(name)-2:] == "[]" {
-			name = name[:len(name)-2]
-		}
+			// remove '[]' from fieldName if it's an array
+			if len(name) > 2 && name[len(name)-2:] == "[]" {
+				name = name[:len(name)-2]
+			}
 
-		for _, v := range values {
-			err = h.appendValue(name, v, Low)
-			if err != nil {
-				return h, err
+			for _, v := range values {
+				err = h.appendValue(name, v, Low)
+				if err != nil {
+					return h, err
+				}
 			}
 		}
+	} else {
+		return e.FromBody(c)
 	}
+
 	return h, err
 }
 
-func (e *Entity) FromMap(c Context, m map[string]interface{}) (EntityDataHolder, error) {
+func (e *Entity) FromBody(c Context) (*EntityDataHolder, error) {
+	var h *EntityDataHolder
+	var err error
+
+	if len(c.body) == 0 {
+		return e.FromMap(c, map[string]interface{}{})
+	}
+
+	var t map[string]interface{}
+	err = json.Unmarshal(c.body, &t)
+	if err != nil {
+		return h, err
+	}
+
+	return e.FromMap(c, t)
+}
+
+func (e *Entity) FromMap(c Context, m map[string]interface{}) (*EntityDataHolder, error) {
 	var h = e.New()
 	var err error
 

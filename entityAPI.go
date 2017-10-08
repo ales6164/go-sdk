@@ -9,10 +9,9 @@ import (
 	"strconv"
 )
 
-func (e *Entity) EnableAPI(a *SDK, index *DocumentDefinition, fieldPosition []string) {
-
-	a.HandleFunc("/api/entities/"+e.Name+"/{encodedKey}", e.handleGet(fieldPosition)).Methods(http.MethodGet)
-	a.HandleFunc("/api/entities/"+e.Name, e.handleQuery(index, fieldPosition)).Methods(http.MethodGet)
+func (e *Entity) EnableAPI(r *mux.Router, index *DocumentDefinition, fieldPosition []string) {
+	r.HandleFunc(e.Name+"/{encodedKey}", e.handleGet(fieldPosition)).Methods(http.MethodGet)
+	r.HandleFunc(e.Name, e.handleQuery(index, fieldPosition)).Methods(http.MethodGet)
 }
 
 func (e *Entity) handleGet(fieldPosition []string) func(w http.ResponseWriter, r *http.Request) {

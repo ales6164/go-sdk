@@ -7,6 +7,7 @@ import (
 	"time"
 	"golang.org/x/net/context"
 	"google.golang.org/appengine"
+	"io/ioutil"
 )
 
 type Context struct {
@@ -19,10 +20,14 @@ type Context struct {
 	Namespace       string
 	IsAuthenticated bool
 	Token           Token
+
+	body []byte
 }
 
 func NewContext(r *http.Request) Context {
 	isAuthenticated, namespace, username, renewedToken, err := getUser(r)
+	body, _ := ioutil.ReadAll(r.Body)
+	r.Body.Close()
 	return Context{
 		r:               r,
 		Context:         appengine.NewContext(r),
@@ -31,6 +36,7 @@ func NewContext(r *http.Request) Context {
 		User:            username,
 		Token:           renewedToken,
 		err:             err,
+		body:            body,
 	}
 }
 

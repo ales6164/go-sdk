@@ -56,6 +56,7 @@ func init() {
 				Name:       "namespace",
 				IsRequired: true,
 				NoEdits:    true,
+				Json:       NoJsonOutput,
 				ValueFunc: func() interface{} {
 					return uuid.New().String()
 				},
@@ -320,9 +321,9 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, err
 	}
 
-	err = decrypt([]byte(d.Get("password").([]uint8)), []byte(ctx.r.FormValue("password")))
+	err = decrypt([]byte(d.Get("password").([]uint8)), []byte(do.GetInput("password").(string)))
 	if err != nil {
-		return id_token, nil, ErrNotAuthorized
+		return id_token, nil, err
 	}
 
 	ctx, profileKey, err := ProfileEntity.NewKey(ctx, do.Get("email"), false)
@@ -346,4 +347,3 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 	}
 	return id_token, data, err
 }
-

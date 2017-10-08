@@ -16,7 +16,8 @@ type EntityDataHolder struct {
 
 	isNew bool
 
-	data Data // this can be edited by load/save, and conditionally with appendField functions
+	data  Data                   // this can be edited by load/save, and conditionally with appendField functions
+	input map[string]interface{} // this can be edited by load/save, and conditionally with appendField functions
 }
 
 type Data map[*Field]interface{}
@@ -42,12 +43,19 @@ func (e *EntityDataHolder) Get(name string) interface{} {
 	return nil
 }
 
+func (e *EntityDataHolder) GetInput(name string) interface{} {
+	return e.input[name]
+}
+
 func output(data Data) map[string]interface{} {
 	var output = map[string]interface{}{}
 	var multiples []string
 
 	// range over data. Value can be single value or if the field it Multiple then it's an array
 	for field, value := range data {
+		if field.Json == NoJsonOutput {
+			continue
+		}
 
 		if len(field.GroupName) != 0 {
 			if _, ok := output[field.GroupName]; !ok {
@@ -109,6 +117,10 @@ func flatOutput(data Data) map[string]interface{} {
 	var output = map[string]interface{}{}
 
 	for field, value := range data {
+		if field.Json == NoJsonOutput {
+			continue
+		}
+
 		if len(field.GroupName) != 0 {
 			output[field.GroupName+strings.Title(field.Name)] = value
 		} else {
@@ -146,6 +158,8 @@ func (e *EntityDataHolder) AppendValue(name string, value interface{}) error {
 }
 
 func (e *EntityDataHolder) appendValue(name string, value interface{}, trust ValueTrust) error {
+	e.input[name] = value
+
 	if field, ok := e.Entity.Fields[name]; ok {
 		var c = &ValueContext{Field: field, Trust: trust}
 		return e.appendFieldValue(field, value, c)
@@ -173,7 +187,7 @@ func (e *EntityDataHolder) appendFieldValue(field *Field, value interface{}, vc 
 	}
 
 	if v != nil {
-		e.unsafeAppendFieldValue(field, v)
+		e.unsafeAppendFieldValue(field, v, value)
 		return nil
 	}
 
@@ -181,7 +195,7 @@ func (e *EntityDataHolder) appendFieldValue(field *Field, value interface{}, vc 
 }
 
 // UNSAFE Appends value without any checks
-func (e *EntityDataHolder) unsafeAppendFieldValue(field *Field, value interface{}) {
+func (e *EntityDataHolder) unsafeAppendFieldValue(field *Field, value interface{}, formValue interface{}) {
 	if field.Multiple {
 		// Todo: Check if this check is necessary
 		if _, ok := e.data[field]; !ok {
@@ -204,7 +218,7 @@ func (e *EntityDataHolder) Load(ps []datastore.Property) error {
 			if prop.Multiple != field.Multiple {
 				return fmt.Errorf(ErrDatastoreFieldPropertyMultiDismatch, prop.Name)
 			}
-			e.unsafeAppendFieldValue(field, prop.Value)
+			e.unsafeAppendFieldValue(field, prop.Value, nil)
 		} else {
 			return fmt.Errorf(ErrNamedFieldNotDefined, prop.Name)
 		}

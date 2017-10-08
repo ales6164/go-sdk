@@ -31,8 +31,8 @@ type EntityQueryFilter struct {
 	Value    interface{} `json:"value"`
 }
 
-func (e *Entity) Query(ctx Context, namespace string, sort string, limit int, filters ...EntityQueryFilter) ([]EntityDataHolder, error) {
-	var hs []EntityDataHolder
+func (e *Entity) Query(ctx Context, namespace string, sort string, limit int, filters ...EntityQueryFilter) ([]*EntityDataHolder, error) {
+	var hs []*EntityDataHolder
 
 	if ctx.HasScope(ScopeGet) && (len(namespace) == 0 || ctx.Namespace == namespace) {
 		q := datastore.NewQuery(e.Name)
@@ -51,9 +51,9 @@ func (e *Entity) Query(ctx Context, namespace string, sort string, limit int, fi
 
 		t := q.Run(ctx.Context)
 		for {
-			var h EntityDataHolder = e.New()
+			var h *EntityDataHolder = e.New()
 			h.isNew = false
-			_, err := t.Next(&h)
+			_, err := t.Next(h)
 			if err == datastore.Done {
 				break
 			}
@@ -61,7 +61,7 @@ func (e *Entity) Query(ctx Context, namespace string, sort string, limit int, fi
 				return hs, err
 			}
 			if e.OnAfterRead != nil {
-				err = e.OnAfterRead(&h)
+				err = e.OnAfterRead(h)
 			}
 			hs = append(hs, h)
 		}
@@ -72,23 +72,23 @@ func (e *Entity) Query(ctx Context, namespace string, sort string, limit int, fi
 	return hs, ErrNotAuthorized
 }
 
-func (e *Entity) Get(ctx Context, key *datastore.Key) (EntityDataHolder, error) {
-	var h EntityDataHolder = e.New()
+func (e *Entity) Get(ctx Context, key *datastore.Key) (*EntityDataHolder, error) {
+	var h *EntityDataHolder = e.New()
 	h.isNew = false
 	if isAuthorized(ctx, key, ctx.HasScope(ScopeGet)) {
-		err := datastore.Get(ctx.Context, key, &h)
+		err := datastore.Get(ctx.Context, key, h)
 		if err != nil {
 			return h, err
 		}
 		if e.OnAfterRead != nil {
-			err = e.OnAfterRead(&h)
+			err = e.OnAfterRead(h)
 		}
 		return h, err
 	}
 	return h, ErrNotAuthorized
 }
 
-func (e *Entity) Add(ctx Context, key *datastore.Key, h EntityDataHolder) (*datastore.Key, error) {
+func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
 	var err error
 	if isAuthorized(ctx, key, ctx.HasScope(ScopeAdd)) {
 		if !key.Incomplete() {
@@ -97,7 +97,7 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h EntityDataHolder) (*data
 				err := datastore.Get(tc, key, &tempEnt)
 				if err != nil {
 					if err == datastore.ErrNoSuchEntity {
-						key, err = datastore.Put(tc, key, &h)
+						key, err = datastore.Put(tc, key, h)
 						e.PutToIndexes(tc, key.Encode(), h)
 						return err
 					}
@@ -109,7 +109,7 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h EntityDataHolder) (*data
 			}, nil)
 
 		} else {
-			key, err = datastore.Put(ctx.Context, key, &h)
+			key, err = datastore.Put(ctx.Context, key, h)
 			e.PutToIndexes(ctx.Context, key.Encode(), h)
 		}
 		return key, err
@@ -117,15 +117,15 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h EntityDataHolder) (*data
 	return key, ErrNotAuthorized
 }
 
-func (e *Entity) Put(ctx Context, key *datastore.Key, h EntityDataHolder) (*datastore.Key, error) {
+func (e *Entity) Put(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
 	if isAuthorized(ctx, key, ctx.HasScope(ScopePut)) {
 		e.PutToIndexes(ctx.Context, key.Encode(), h)
-		return datastore.Put(ctx.Context, key, &h)
+		return datastore.Put(ctx.Context, key, h)
 	}
 	return key, ErrNotAuthorized
 }
 
-func (e *Entity) Edit(ctx Context, key *datastore.Key, h EntityDataHolder) (*datastore.Key, error) {
+func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
 	var err error
 	if isAuthorized(ctx, key, ctx.HasScope(ScopeEdit)) {
 		if !key.Incomplete() {
@@ -136,7 +136,7 @@ func (e *Entity) Edit(ctx Context, key *datastore.Key, h EntityDataHolder) (*dat
 					return err
 				}
 
-				key, err = datastore.Put(tc, key, &h)
+				key, err = datastore.Put(tc, key, h)
 				return err
 			}, nil)
 		} else {
