@@ -9,9 +9,33 @@ import (
 	"strconv"
 )
 
-func (e *Entity) EnableAPI(r *mux.Router, index *DocumentDefinition, fieldPosition []string) {
-	r.HandleFunc(e.Name+"/{encodedKey}", e.handleGet(fieldPosition)).Methods(http.MethodGet)
-	r.HandleFunc(e.Name, e.handleQuery(index, fieldPosition)).Methods(http.MethodGet)
+func (a *SDK) EnableEntityAPI(e *Entity, index *DocumentDefinition, fieldPosition []string) {
+	a.HandleFunc("/"+e.Name+"/fields", e.handleGetFields(fieldPosition)).Methods(http.MethodGet)
+	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handleGet(fieldPosition)).Methods(http.MethodGet)
+	a.HandleFunc("/"+e.Name, e.handleQuery(index, fieldPosition)).Methods(http.MethodGet)
+	a.HandleFunc("/"+e.Name, e.handlePost()).Methods(http.MethodPost)
+}
+
+func (e *Entity) handleGetFields(fieldPosition []string) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := NewContext(r)
+
+		var fields []map[string]interface{}
+		for _, field := range e.fields {
+			if len(field.Widget.WidgetName()) != 0 {
+				var widget = map[string]interface{}{}
+				widget["type"] = field.Widget.WidgetName()
+				widget["field"] = field.Name
+				widget["options"] = field.Widget
+				fields = append(fields, widget)
+			}
+		}
+
+		ctx.Print(w, map[string]interface{}{
+			"fields": fields,
+			"data":   e.New().Output(),
+		})
+	}
 }
 
 func (e *Entity) handleGet(fieldPosition []string) func(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +61,28 @@ func (e *Entity) handleGet(fieldPosition []string) func(w http.ResponseWriter, r
 			"fields": fieldPosition,
 			"data":   dataHolder.Output(),
 		})
+	}
+}
+
+func (e *Entity) handlePost() func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := NewContext(r).WithScopes(ScopeAdd)
+
+		holder, err := e.FromForm(ctx)
+		if err != nil {
+			ctx.PrintError(w, err, http.StatusInternalServerError)
+			return
+		}
+
+		ctx, key := e.NewIncompleteKey(ctx, false)
+
+		key, err = e.Add(ctx, key, holder)
+		if err != nil {
+			ctx.PrintError(w, err, http.StatusInternalServerError)
+			return
+		}
+
+		ctx.Print(w, holder.Output())
 	}
 }
 

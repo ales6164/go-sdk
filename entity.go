@@ -16,6 +16,7 @@ import (
 type Entity struct {
 	Name   string
 	Fields map[string]*Field
+	fields []*Field
 
 	preparedData map[*Field]func(*Field) interface{}
 
@@ -30,6 +31,7 @@ type Entity struct {
 func NewEntity(name string, fields []*Field) *Entity {
 	var e = new(Entity)
 	e.Name = name
+	e.fields = fields
 	e.indexes = map[string]*DocumentDefinition{}
 
 	e.preparedData = map[*Field]func(*Field) interface{}{}

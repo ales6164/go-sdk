@@ -7,14 +7,16 @@ import (
 	"net/http"
 	"github.com/gorilla/sessions"
 	"github.com/gorilla/securecookie"
+	"encoding/gob"
+	"time"
 )
 
 type SDK struct {
-	Router *mux.Router
+	Router       *mux.Router
 	*AppOptions
 	middleware   *JWTMiddleware
 	sessionStore *sessions.CookieStore
-	installed bool
+	installed    bool
 }
 
 type AppOptions struct {
@@ -31,6 +33,13 @@ type MyServer struct {
 
 var signingKey []byte
 
+func init() {
+	gob.Register(time.Now())
+	gob.Register(InputWidget{})
+	gob.Register(MediaWidget{})
+	gob.Register(SelectWidget{})
+}
+
 func (s *MyServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if origin := req.Header.Get("Origin"); origin != "" {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
@@ -45,7 +54,7 @@ func (s *MyServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	s.h.ServeHTTP(w, req)
 }
 
-func NewApp(opt AppOptions) *SDK {
+func NewApp(opt AppOptions, path string) *SDK {
 	a := &SDK{
 		AppOptions: &opt,
 	}
@@ -56,6 +65,10 @@ func NewApp(opt AppOptions) *SDK {
 
 	signingKey = opt.SigningKey
 
+	a.Router = mux.NewRouter().PathPrefix(path).Subrouter()
+	a.middleware = AuthMiddleware(signingKey)
+	http.Handle(path, &MyServer{a.Router})
+
 	return a
 }
 
@@ -64,10 +77,7 @@ func (a *SDK) EnableAdminDashboard() {
 }
 
 // Recommended path "/api/"
-func (a *SDK) Serve(path string) {
-	a.Router = mux.NewRouter().PathPrefix(path).Subrouter()
-
-	a.middleware = AuthMiddleware(signingKey)
+func (a *SDK) EnableAuthAPI() {
 
 	a.HandleFunc("/profile", GetUserProfileHandler).Methods(http.MethodGet)
 	a.HandleFunc("/profile", EditUserProfileHandler).Methods(http.MethodPut)
@@ -115,8 +125,6 @@ func (a *SDK) Serve(path string) {
 		ctx.PrintError(w, ErrNotAuthenticated, http.StatusUnauthorized)
 	}).Methods(http.MethodGet)
 
-
-	http.Handle(path, &MyServer{a.Router})
 }
 
 func (a *SDK) Handle(path string, handler http.Handler) *mux.Route {

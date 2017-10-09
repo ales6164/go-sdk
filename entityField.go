@@ -17,7 +17,7 @@ var (
 // todo: add ALS rules: read, write, ...
 // todo: grouping (productName, productPrice, ...)
 type Field struct {
-	GroupName  string `json:"groupName"`
+	GroupName  string `json:"groupName"` // can be heavy as creates an array for every field
 	Name       string `json:"name"`
 	NoEdits    bool   `json:"noEdits"` // default true
 	IsRequired bool   `json:"isRequired"`
@@ -32,10 +32,18 @@ type Field struct {
 	TransformFunc func(ctx *ValueContext, value interface{}) (interface{}, error) `json:"-"`
 	Validator     func(value interface{}) bool                                    `json:"-"`
 
+	CachedGroupEntity *CachedGroupEntity `json:"cachedGroupEntity"` // different than groups - keeps defined entity in cache and stores only id's - not as heavy as groups
+	Widget     Widget      `json:"widgetOptions"`     // used for automatic admin html template creation
+
 	SearchProps []interface{} `json:"-"`
 
 	datastoreFieldName string
 	fieldFunc []func(ctx *ValueContext, v interface{}) (interface{}, error)
+}
+
+type CachedGroupEntity struct {
+	Entity *Entity
+	Field  *Field
 }
 
 type ValueContext struct {
