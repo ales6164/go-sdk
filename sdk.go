@@ -69,6 +69,12 @@ func NewApp(opt AppOptions, path string) *SDK {
 	a.middleware = AuthMiddleware(signingKey)
 	http.Handle(path, &MyServer{a.Router})
 
+	// handler returns enabled apis
+	a.HandleFunc("/enabled-apis", func(w http.ResponseWriter, r *http.Request) {
+		ctx := NewContext(r)
+		ctx.Print(w, enabledAPIs)
+	})
+
 	return a
 }
 

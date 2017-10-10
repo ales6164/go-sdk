@@ -80,6 +80,8 @@ func (e *Entity) Get(ctx Context, key *datastore.Key) (*EntityDataHolder, error)
 		if err != nil {
 			return h, err
 		}
+		encoded := key.Encode()
+		h.id = encoded
 		if e.OnAfterRead != nil {
 			err = e.OnAfterRead(h)
 		}
@@ -98,7 +100,9 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 				if err != nil {
 					if err == datastore.ErrNoSuchEntity {
 						key, err = datastore.Put(tc, key, h)
-						e.PutToIndexes(tc, key.Encode(), h)
+						encoded := key.Encode()
+						h.id = encoded
+						e.PutToIndexes(tc, encoded, h)
 						return err
 					}
 					return err
@@ -110,7 +114,9 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 
 		} else {
 			key, err = datastore.Put(ctx.Context, key, h)
-			e.PutToIndexes(ctx.Context, key.Encode(), h)
+			encoded := key.Encode()
+			h.id = encoded
+			e.PutToIndexes(ctx.Context, encoded, h)
 		}
 		return key, err
 	}
@@ -119,8 +125,14 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 
 func (e *Entity) Put(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
 	if isAuthorized(ctx, key, ctx.HasScope(ScopePut)) {
-		e.PutToIndexes(ctx.Context, key.Encode(), h)
-		return datastore.Put(ctx.Context, key, h)
+		key, err := datastore.Put(ctx.Context, key, h)
+		if err != nil {
+			return key, err
+		}
+		encoded := key.Encode()
+		h.id = encoded
+		e.PutToIndexes(ctx.Context, encoded, h)
+		return key, err
 	}
 	return key, ErrNotAuthorized
 }
@@ -135,8 +147,9 @@ func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 				if err != nil {
 					return err
 				}
-
 				key, err = datastore.Put(tc, key, h)
+				encoded := key.Encode()
+				h.id = encoded
 				return err
 			}, nil)
 		} else {

@@ -14,9 +14,11 @@ import (
 )
 
 type Entity struct {
-	Name   string
-	Fields map[string]*Field
-	fields []*Field
+	KeepInCache bool //todo: if true loads all values and holds them in cache - good for categories, translations, ...
+
+	Name        string
+	Fields      map[string]*Field
+	fields      []*Field
 
 	preparedData map[*Field]func(*Field) interface{}
 
@@ -38,8 +40,12 @@ func NewEntity(name string, fields []*Field) *Entity {
 
 	e.Fields = map[string]*Field{}
 	for _, field := range fields {
-		if !govalidator.IsAlpha(field.Name) {
-			panic(errors.New("field name contains non-alpha characters"))
+		if len(field.Name) == 0 {
+			panic(errors.New("field name can't be empty"))
+		}
+
+		if field.Name == "_id" || field.Name == "id" {
+			panic(errors.New("field name _id/id is reserved and can't be used"))
 		}
 
 		if len(field.GroupName) != 0 {
@@ -127,7 +133,7 @@ func (e *Entity) AddIndex(dd *DocumentDefinition) {
 }
 
 var putToIndex = delay.Func(RandStringBytesMaskImprSrc(16), func(ctx context.Context, dd DocumentDefinition, id string, data Data) {
-	dd.Put(ctx, id, flatOutput(data))
+	dd.Put(ctx, id, flatOutput(id, data))
 })
 var removeFromIndex = delay.Func(RandStringBytesMaskImprSrc(16), func(ctx context.Context, dd DocumentDefinition) {
 	// do something expensive!

@@ -16,6 +16,7 @@ type EntityDataHolder struct {
 
 	isNew bool
 
+	id    interface{}            // saved during datastore operations and returned on output
 	data  Data                   // this can be edited by load/save, and conditionally with appendField functions
 	input map[string]interface{} // this can be edited by load/save, and conditionally with appendField functions
 }
@@ -47,7 +48,7 @@ func (e *EntityDataHolder) GetInput(name string) interface{} {
 	return e.input[name]
 }
 
-func output(data Data) map[string]interface{} {
+func output(id interface{}, data Data) map[string]interface{} {
 	var output = map[string]interface{}{}
 	var multiples []string
 
@@ -110,10 +111,12 @@ func output(data Data) map[string]interface{} {
 		delete(output[multiName].(map[string]interface{}), "LastProp")
 	}
 
+	output["_id"] = id
+
 	return output
 }
 
-func flatOutput(data Data) map[string]interface{} {
+func flatOutput(id interface{}, data Data) map[string]interface{} {
 	var output = map[string]interface{}{}
 
 	for field, value := range data {
@@ -128,15 +131,17 @@ func flatOutput(data Data) map[string]interface{} {
 		}
 	}
 
+	output["_id"] = id
+
 	return output
 }
 
 func (e *EntityDataHolder) Output() map[string]interface{} {
-	return output(e.data)
+	return output(e.id, e.data)
 }
 
 func (e *EntityDataHolder) FlatOutput() map[string]interface{} {
-	return flatOutput(e.data)
+	return flatOutput(e.id, e.data)
 }
 
 func (e *EntityDataHolder) JSON() (string, error) {

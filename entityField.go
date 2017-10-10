@@ -32,8 +32,8 @@ type Field struct {
 	TransformFunc func(ctx *ValueContext, value interface{}) (interface{}, error) `json:"-"`
 	Validator     func(value interface{}) bool                                    `json:"-"`
 
-	CachedGroupEntity *CachedGroupEntity `json:"cachedGroupEntity"` // different than groups - keeps defined entity in cache and stores only id's - not as heavy as groups
-	Widget     Widget      `json:"widgetOptions"`     // used for automatic admin html template creation
+	//GroupEntity GroupEntity `json:"groupEntity"`   // if defined, value stored as an separate entity; in field stored key
+	Widget      Widget       `json:"widgetOptions"` // used for automatic admin html template creation
 
 	SearchProps []interface{} `json:"-"`
 
@@ -41,9 +41,8 @@ type Field struct {
 	fieldFunc []func(ctx *ValueContext, v interface{}) (interface{}, error)
 }
 
-type CachedGroupEntity struct {
-	Entity *Entity
-	Field  *Field
+type GroupEntity struct {
+	Entity      *Entity
 }
 
 type ValueContext struct {

@@ -291,7 +291,7 @@ func Register(ctx Context) (Token, map[string]interface{}, error) {
 		data[name] = value
 	}
 
-	id_token, err = NewToken(data["namespace"].(string), data["email"].(string))
+	id_token, err = NewToken(data["namespace"].(string), d.input["email"].(string))
 	if err != nil {
 		return id_token, nil, err
 	}

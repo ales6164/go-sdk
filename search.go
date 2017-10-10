@@ -96,7 +96,7 @@ func ClearIndex(ctx context.Context, name string) error {
 }
 
 func (dd *DocumentDefinition) Put(ctx context.Context, id string, data map[string]interface{}) error {
-	assembled := dd.Assemble(data)
+	assembled := dd.Assemble(id, data)
 
 	index, err := search.Open(dd.Name)
 	if err != nil {
@@ -107,8 +107,14 @@ func (dd *DocumentDefinition) Put(ctx context.Context, id string, data map[strin
 	return err
 }
 
-func (dd *DocumentDefinition) Assemble(data map[string]interface{}) Document {
+func (dd *DocumentDefinition) Assemble(id string, data map[string]interface{}) Document {
 	var document = Document{}
+
+	var f = search.Field{
+		Name:  "id",
+		Value: id,
+	}
+	document.AddFields(f)
 
 	for _, name := range dd.Fields {
 		var val interface{} = data[name]
