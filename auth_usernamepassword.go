@@ -287,13 +287,14 @@ func Register(ctx Context) (Token, map[string]interface{}, error) {
 	}
 
 	var data = d.Output()
-	for name, value := range profileData.Output() {
-		data[name] = value
-	}
 
-	id_token, err = NewToken(data["namespace"].(string), d.input["email"].(string))
+	id_token, err = NewToken(d.Get("namespace").(string), d.GetInput("email").(string))
 	if err != nil {
 		return id_token, nil, err
+	}
+
+	for name, value := range profileData.Output() {
+		data[name] = value
 	}
 
 	return id_token, data, err

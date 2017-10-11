@@ -54,14 +54,14 @@ func NewToken(ns string, usr string) (Token, error) {
 	return t, err
 }
 
-func SetSecureSession(id_token string, w http.ResponseWriter, r *http.Request) error {
+/*func SetSecureSession(id_token string, w http.ResponseWriter, r *http.Request) error {
 	session, err := session.Get(r, secureSessionName)
 	if err != nil {
 		return err
 	}
 	session.Values["id_token"] = id_token
 	return session.Save(r, w)
-}
+}*/
 
 func (a *SDK) AnonTokenHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

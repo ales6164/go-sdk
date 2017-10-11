@@ -53,13 +53,14 @@ func (e *Entity) Query(ctx Context, namespace string, sort string, limit int, fi
 		for {
 			var h *EntityDataHolder = e.New()
 			h.isNew = false
-			_, err := t.Next(h)
+			key, err := t.Next(h)
 			if err == datastore.Done {
 				break
 			}
 			if err != nil {
 				return hs, err
 			}
+			h.id = key.Encode()
 			if e.OnAfterRead != nil {
 				err = e.OnAfterRead(h)
 			}

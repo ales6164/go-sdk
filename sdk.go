@@ -78,9 +78,9 @@ func NewApp(opt AppOptions, path string) *SDK {
 	return a
 }
 
-func (a *SDK) EnableAdminDashboard() {
+/*func (a *SDK) EnableAdminDashboard() {
 	AdminDashboard(a)
-}
+}*/
 
 // Recommended path "/api/"
 func (a *SDK) EnableAuthAPI() {
