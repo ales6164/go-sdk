@@ -14,7 +14,8 @@ import (
 type EntityDataHolder struct {
 	Entity *Entity `json:"-"`
 
-	isNew bool
+	isNew             bool
+	keepExistingValue bool // turn this true when receiving old data from database; used for editing existing entity
 
 	id    interface{}            // saved during datastore operations and returned on output
 	data  Data                   // this can be edited by load/save, and conditionally with appendField functions
@@ -192,7 +193,7 @@ func (e *EntityDataHolder) appendFieldValue(field *Field, value interface{}, vc 
 	}
 
 	if v != nil {
-		e.unsafeAppendFieldValue(field, v, value)
+		e.unsafeAppendFieldValue(field, v, value, e.keepExistingValue)
 		return nil
 	}
 
@@ -200,30 +201,36 @@ func (e *EntityDataHolder) appendFieldValue(field *Field, value interface{}, vc 
 }
 
 // UNSAFE Appends value without any checks
-func (e *EntityDataHolder) unsafeAppendFieldValue(field *Field, value interface{}, formValue interface{}) {
+func (e *EntityDataHolder) unsafeAppendFieldValue(field *Field, value interface{}, formValue interface{}, keepExistingValue bool) {
 	if field.Multiple {
 		// Todo: Check if this check is necessary
 		if _, ok := e.data[field]; !ok {
 			e.data[field] = []interface{}{}
+		} else if keepExistingValue {
+			return
 		}
 		if _, ok := e.data[field].([]interface{}); !ok {
 			panic(errors.New("field '" + field.Name + "' value is not []interface{}"))
 		}
 		e.data[field] = append(e.data[field].([]interface{}), value)
 	} else {
+		if _, ok := e.data[field]; ok && keepExistingValue {
+			return
+		}
 		e.data[field] = value
 	}
 }
 
 // load from datastore properties into Data map
 func (e *EntityDataHolder) Load(ps []datastore.Property) error {
-	e.data = map[*Field]interface{}{}
+	/*e.data = map[*Field]interface{}{}*/
 	for _, prop := range ps {
 		if field, ok := e.Entity.Fields[prop.Name]; ok {
+
 			if prop.Multiple != field.Multiple {
 				return fmt.Errorf(ErrDatastoreFieldPropertyMultiDismatch, prop.Name)
 			}
-			e.unsafeAppendFieldValue(field, prop.Value, nil)
+			e.unsafeAppendFieldValue(field, prop.Value, nil, e.keepExistingValue)
 		} else {
 			return fmt.Errorf(ErrNamedFieldNotDefined, prop.Name)
 		}

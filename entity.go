@@ -229,7 +229,7 @@ func (e *Entity) NewKey(c Context, nameId interface{}, withNamespace bool) (Cont
 func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 	var h *EntityDataHolder
 
-	return e.FromBody(c)
+	//return e.FromBody(c)
 
 	// todo: fix this
 	c.r.FormValue("a")

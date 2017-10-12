@@ -4,9 +4,15 @@ import (
 	"net/http"
 	"github.com/gorilla/mux"
 	"google.golang.org/appengine/datastore"
+	"strconv"
 )
 
-var enabledAPIs []string
+var enabledAPIs []API
+
+type API struct {
+	Name string `json:"name"`
+	Fields []string `json:"fields"`
+}
 
 func (a *SDK) EnableEntityAPI(e *Entity, fieldPosition []string) {
 	a.HandleFunc("/"+e.Name+"/fields", e.handleGetFields()).Methods(http.MethodGet)
@@ -16,7 +22,7 @@ func (a *SDK) EnableEntityAPI(e *Entity, fieldPosition []string) {
 	a.HandleFunc("/"+e.Name, e.handlePost()).Methods(http.MethodPost)
 	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handlePost()).Methods(http.MethodPost)
 
-	enabledAPIs = append(enabledAPIs, e.Name)
+	enabledAPIs = append(enabledAPIs, API{e.Name, fieldPosition})
 }
 
 func (e *Entity) handleGetWithFields() func(w http.ResponseWriter, r *http.Request) {
@@ -105,7 +111,7 @@ func (e *Entity) handleGet(fieldPosition []string) func(w http.ResponseWriter, r
 
 func (e *Entity) handlePost() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithScopes(ScopeAdd, ScopePut)
+		ctx := NewContext(r).WithScopes(ScopeEdit, ScopePut)
 		vars := mux.Vars(r)
 		encodedKey := vars["encodedKey"]
 
@@ -126,7 +132,7 @@ func (e *Entity) handlePost() func(w http.ResponseWriter, r *http.Request) {
 			ctx, key = e.NewIncompleteKey(ctx, true)
 		}
 
-		key, err = e.Put(ctx, key, holder)
+		key, err = e.Post(ctx, key, holder)
 		if err != nil {
 			ctx.PrintError(w, err, http.StatusInternalServerError)
 			return
@@ -140,7 +146,16 @@ func (e *Entity) handleQuery(fieldPosition []string) func(w http.ResponseWriter,
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r).WithScopes(ScopeGet)
 
-		dataHolder, err := e.Query(ctx, ctx.Namespace, "", 0)
+		q := r.URL.Query()
+
+		sort := q.Get("sort")
+		limit_str := q.Get("limit")
+		var limit int = 0
+		if len(limit_str) != 0 {
+			limit, _ = strconv.Atoi(limit_str)
+		}
+
+		dataHolder, err := e.Query(ctx, ctx.Namespace, sort, limit)
 		if err != nil {
 			ctx.PrintError(w, err, http.StatusInternalServerError)
 			return

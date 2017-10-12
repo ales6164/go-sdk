@@ -72,7 +72,28 @@ func NewApp(opt AppOptions, path string) *SDK {
 	// handler returns enabled apis
 	a.HandleFunc("/enabled-apis", func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r)
+
+		/*var entities []interface{}
+
+		for _, e := range enabledAPIs {
+
+			var fields []map[string]interface{}
+			for _, field := range e.fields {
+				if len(field.Widget.WidgetName()) != 0 {
+					var widget = map[string]interface{}{}
+					widget["type"] = field.Widget.WidgetName()
+					widget["field"] = field.Name
+					widget["options"] = field.Widget
+					fields = append(fields, widget)
+				}
+			}
+			entities = append(entities, fields)
+		}*/
+
 		ctx.Print(w, enabledAPIs)
+
+
+		//ctx.Print(w, enabledAPIs)
 	})
 
 	return a

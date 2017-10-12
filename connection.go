@@ -138,6 +138,58 @@ func (e *Entity) Put(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 	return key, ErrNotAuthorized
 }
 
+// Checks if the key is incomplete; if not it tries retrieving the entity and then copying values to the existing entity
+// otherwise it adds a new entity
+func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
+	var err error
+	if isAuthorized(ctx, key, true) {
+		if key.Incomplete() {
+			if ctx.HasScope(ScopeAdd) {
+				// add entity
+
+				key, err = datastore.Put(ctx.Context, key, h)
+				encoded := key.Encode()
+				h.id = encoded
+				e.PutToIndexes(ctx.Context, encoded, h)
+
+				return key, err
+			}
+		} else if ctx.HasScope(ScopeEdit) || ctx.HasScope(ScopePut) {
+			// edit or rewrite entity
+			err = datastore.RunInTransaction(ctx.Context, func(tc context.Context) error {
+
+				h.keepExistingValue = true // important!
+				err := datastore.Get(tc, key, h)
+				if err != nil {
+					if err == datastore.ErrNoSuchEntity {
+						// Add entity
+
+						key, err = datastore.Put(ctx.Context, key, h)
+						encoded := key.Encode()
+						h.id = encoded
+						e.PutToIndexes(ctx.Context, encoded, h)
+
+						return err
+					}
+					return err
+				}
+				h.keepExistingValue = false
+
+				key, err = datastore.Put(ctx.Context, key, h)
+				encoded := key.Encode()
+				h.id = encoded
+				e.PutToIndexes(ctx.Context, encoded, h)
+
+				return err
+			}, nil)
+
+			return key, err
+		}
+	}
+	return key, ErrNotAuthorized
+}
+
+// currently it only check if entity exists and rewrites it
 func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
 	var err error
 	if isAuthorized(ctx, key, ctx.HasScope(ScopeEdit)) {
@@ -148,6 +200,7 @@ func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 				if err != nil {
 					return err
 				}
+
 				key, err = datastore.Put(tc, key, h)
 				encoded := key.Encode()
 				h.id = encoded
