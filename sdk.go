@@ -54,7 +54,9 @@ func (s *MyServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	s.h.ServeHTTP(w, req)
 }
 
-func NewApp(opt AppOptions, path string) *SDK {
+const apiPath = "/api/"
+
+func NewApp(opt AppOptions) *SDK {
 	a := &SDK{
 		AppOptions: &opt,
 	}
@@ -65,9 +67,9 @@ func NewApp(opt AppOptions, path string) *SDK {
 
 	signingKey = opt.SigningKey
 
-	a.Router = mux.NewRouter().PathPrefix(path).Subrouter()
+	a.Router = mux.NewRouter().PathPrefix(apiPath).Subrouter()
 	a.middleware = AuthMiddleware(signingKey)
-	http.Handle(path, &MyServer{a.Router})
+	http.Handle(apiPath, &MyServer{a.Router})
 
 	// handler returns enabled apis
 	a.HandleFunc("/enabled-apis", func(w http.ResponseWriter, r *http.Request) {

@@ -111,7 +111,7 @@ func (e *Entity) handleGet(fieldPosition []string) func(w http.ResponseWriter, r
 
 func (e *Entity) handlePost() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithScopes(ScopeEdit, ScopePut)
+		ctx := NewContext(r).WithScopes(ScopeEdit, ScopePut, ScopeAdd)
 		vars := mux.Vars(r)
 		encodedKey := vars["encodedKey"]
 
