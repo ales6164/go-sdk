@@ -20,7 +20,8 @@ type SDK struct {
 }
 
 type AppOptions struct {
-	SigningKey []byte
+	OwnerAccount string
+	SigningKey   []byte
 }
 
 type Config struct {
@@ -93,7 +94,6 @@ func NewApp(opt AppOptions) *SDK {
 		}*/
 
 		ctx.Print(w, enabledAPIs)
-
 
 		//ctx.Print(w, enabledAPIs)
 	})
