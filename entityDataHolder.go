@@ -17,7 +17,7 @@ type EntityDataHolder struct {
 	isNew             bool
 	keepExistingValue bool // turn this true when receiving old data from database; used for editing existing entity
 
-	id    interface{}            // saved during datastore operations and returned on output
+	id    string                 // saved during datastore operations and returned on output
 	data  Data                   // this can be edited by load/save, and conditionally with appendField functions
 	input map[string]interface{} // this can be edited by load/save, and conditionally with appendField functions
 }

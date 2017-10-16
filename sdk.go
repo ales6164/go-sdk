@@ -21,6 +21,7 @@ type SDK struct {
 
 type AppOptions struct {
 	SigningKey []byte
+	AdminEmail string
 }
 
 type Config struct {
@@ -94,7 +95,6 @@ func NewApp(opt AppOptions) *SDK {
 
 		ctx.Print(w, enabledAPIs)
 
-
 		//ctx.Print(w, enabledAPIs)
 	})
 
@@ -110,6 +110,10 @@ func (a *SDK) EnableAuthAPI() {
 
 	a.HandleFunc("/profile", GetUserProfileHandler).Methods(http.MethodGet)
 	a.HandleFunc("/profile", EditUserProfileHandler).Methods(http.MethodPut)
+
+	a.HandleFunc("/auth/iam", AuthWithIAmUser(a)).Methods(http.MethodPost)
+	a.HandleFunc("/auth/iam/verify", VerifyIAmUser).Methods(http.MethodPost)
+
 	a.HandleFunc("/auth/login", LoginHandler).Methods(http.MethodPost)
 	a.HandleFunc("/auth/register", RegisterHandler).Methods(http.MethodPost)
 	a.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {

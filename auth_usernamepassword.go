@@ -312,7 +312,7 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, err
 	}
 
-	ctx, key, err := UserEntity.NewKey(ctx, do.Get("email"), false)
+	ctx, key, err := UserEntity.NewKey(ctx, do.GetInput("email"), false)
 	if err != nil {
 		return id_token, nil, err
 	}
@@ -327,7 +327,7 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 		return id_token, nil, err
 	}
 
-	ctx, profileKey, err := ProfileEntity.NewKey(ctx, do.Get("email"), false)
+	ctx, profileKey, err := ProfileEntity.NewKey(ctx, do.GetInput("email"), false)
 	if err != nil {
 		return id_token, nil, err
 	}
@@ -342,7 +342,7 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 		data[name] = value
 	}
 
-	id_token, err = NewToken(d.Get("namespace").(string), d.Get("email").(string))
+	id_token, err = NewToken(d.Get("namespace").(string), d.GetInput("email").(string))
 	if err != nil {
 		return id_token, nil, err
 	}
