@@ -114,6 +114,9 @@ func (a *SDK) EnableAuthAPI() {
 	a.HandleFunc("/auth/iam", AuthWithIAmUser(a)).Methods(http.MethodPost)
 	a.HandleFunc("/auth/iam/verify", VerifyIAmUser).Methods(http.MethodPost)
 
+	a.Router.Handle("/auth/client", http.HandlerFunc(NewClientRequest(a)))
+	a.Router.Handle("/auth/client/issue-token", http.HandlerFunc(IssueClientToken))
+
 	a.HandleFunc("/auth/login", LoginHandler).Methods(http.MethodPost)
 	a.HandleFunc("/auth/register", RegisterHandler).Methods(http.MethodPost)
 	a.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
@@ -171,3 +174,5 @@ func (a *SDK) HandleFunc(path string, handlerFunc func(w http.ResponseWriter, r 
 func (a *SDK) Handler(handlerFunc http.HandlerFunc) http.Handler {
 	return a.middleware.Handler(http.Handler(handlerFunc))
 }
+
+var DefaultDataHolder = NewEntity("", []*Field{})

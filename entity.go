@@ -16,9 +16,9 @@ import (
 type Entity struct {
 	KeepInCache bool //todo: if true loads all values and holds them in cache - good for categories, translations, ...
 
-	Name        string
-	Fields      map[string]*Field
-	fields      []*Field
+	Name   string
+	Fields map[string]*Field
+	fields []*Field
 
 	preparedData map[*Field]func(*Field) interface{}
 
@@ -227,22 +227,28 @@ func (e *Entity) NewKey(c Context, nameId interface{}, withNamespace bool) (Cont
 }
 
 func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
-	var h *EntityDataHolder
-
-	//return e.FromBody(c)
+	var h = e.New()
 
 	// todo: fix this
 	c.r.FormValue("a")
 
-	var err error
-	if err = c.r.ParseForm(); err != nil {
-		return h, err
-	}
-
+	err := c.r.ParseForm()
 	if len(c.r.Form) != 0 {
-		h = e.New()
 		for name, values := range c.r.Form {
+			// remove '[]' from fieldName if it's an array
+			if len(name) > 2 && name[len(name)-2:] == "[]" {
+				name = name[:len(name)-2]
+			}
 
+			for _, v := range values {
+				err = h.appendValue(name, v, Low)
+				if err != nil {
+					return h, err
+				}
+			}
+		}
+	} else if len(c.r.PostForm) != 0 {
+		for name, values := range c.r.PostForm {
 			// remove '[]' from fieldName if it's an array
 			if len(name) > 2 && name[len(name)-2:] == "[]" {
 				name = name[:len(name)-2]
@@ -263,17 +269,16 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 }
 
 func (e *Entity) FromBody(c Context) (*EntityDataHolder, error) {
-	var h *EntityDataHolder
 	var err error
 
 	if len(c.body) == 0 {
-		return e.FromMap(c, map[string]interface{}{})
+		return e.New(), nil
 	}
 
 	var t map[string]interface{}
 	err = json.Unmarshal(c.body, &t)
 	if err != nil {
-		return h, err
+		return e.New(), err
 	}
 
 	return e.FromMap(c, t)

@@ -342,7 +342,7 @@ func Login(ctx Context) (Token, map[string]interface{}, error) {
 		data[name] = value
 	}
 
-	id_token, err = NewToken(d.Get("namespace").(string), d.GetInput("email").(string))
+	id_token, err = NewToken(d.Get("namespace").(string), d.Get("email").(string))
 	if err != nil {
 		return id_token, nil, err
 	}

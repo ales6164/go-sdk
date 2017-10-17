@@ -101,6 +101,9 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 				if err != nil {
 					if err == datastore.ErrNoSuchEntity {
 						key, err = datastore.Put(tc, key, h)
+						if err != nil {
+							return err
+						}
 						encoded := key.Encode()
 						h.id = encoded
 						e.PutToIndexes(tc, encoded, h)
@@ -115,6 +118,9 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 
 		} else {
 			key, err = datastore.Put(ctx.Context, key, h)
+			if err != nil {
+				return key, err
+			}
 			encoded := key.Encode()
 			h.id = encoded
 			e.PutToIndexes(ctx.Context, encoded, h)
@@ -148,6 +154,9 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 				// add entity
 
 				key, err = datastore.Put(ctx.Context, key, h)
+				if err != nil {
+					return key, err
+				}
 				encoded := key.Encode()
 				h.id = encoded
 				e.PutToIndexes(ctx.Context, encoded, h)
@@ -165,6 +174,9 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 						// Add entity
 
 						key, err = datastore.Put(ctx.Context, key, h)
+						if err != nil {
+							return err
+						}
 						encoded := key.Encode()
 						h.id = encoded
 						e.PutToIndexes(ctx.Context, encoded, h)
@@ -176,6 +188,9 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 				h.keepExistingValue = false
 
 				key, err = datastore.Put(ctx.Context, key, h)
+				if err != nil {
+					return err
+				}
 				encoded := key.Encode()
 				h.id = encoded
 				e.PutToIndexes(ctx.Context, encoded, h)
@@ -202,6 +217,9 @@ func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 				}
 
 				key, err = datastore.Put(tc, key, h)
+				if err != nil {
+					return err
+				}
 				encoded := key.Encode()
 				h.id = encoded
 				return err
