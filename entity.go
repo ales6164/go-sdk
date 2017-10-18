@@ -11,16 +11,18 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/appengine/log"
 	"encoding/json"
+	"time"
 )
 
 type Entity struct {
-	KeepInCache bool //todo: if true loads all values and holds them in cache - good for categories, translations, ...
+	Name    string
+	Private bool  // protects entity with user field - only creator has access
+	Cache   Cache // keeps values in memcache - good for categories, translations, ...
 
-	Name   string
 	Fields map[string]*Field
 	fields []*Field
 
-	preparedData map[*Field]func(*Field) interface{}
+	preparedData map[*Field]func(ctx Context, f *Field) interface{}
 
 	requiredFields []*Field
 
@@ -30,13 +32,27 @@ type Entity struct {
 	OnAfterRead func(h *EntityDataHolder) (error)
 }
 
+type Cache struct {
+	CacheOnWrite bool          // if true, caches data on write
+	Expiration   time.Duration // value expiration date. Zero means no expiration
+}
+
 func NewEntity(name string, fields []*Field) *Entity {
 	var e = new(Entity)
+
+	if len(name) == 0 {
+		panic(errors.New("entity name can't be empty"))
+	}
+
+	if name == "default" || name == "any" || name == "all" {
+		panic(errors.New("entity name '" + name + "' is reserved and can't be used"))
+	}
+
 	e.Name = name
 	e.fields = fields
 	e.indexes = map[string]*DocumentDefinition{}
 
-	e.preparedData = map[*Field]func(*Field) interface{}{}
+	e.preparedData = map[*Field]func(ctx Context, f *Field) interface{}{}
 
 	e.Fields = map[string]*Field{}
 	for _, field := range fields {
@@ -48,81 +64,133 @@ func NewEntity(name string, fields []*Field) *Entity {
 			panic(errors.New("field name _id/id is reserved and can't be used"))
 		}
 
-		if len(field.GroupName) != 0 {
-			if !govalidator.IsAlpha(field.GroupName) {
-				panic(errors.New("field group name contains non-alpha characters"))
-			}
-			field.datastoreFieldName = field.GroupName + "[" + field.Name + "]"
-		} else {
-			field.datastoreFieldName = field.Name
+		if field.Name[:1] == "_" {
+			panic(errors.New("field name can't start with an underscore"))
 		}
 
-		e.Fields[field.datastoreFieldName] = field
+		e.addField(field)
+	}
 
-		if field.IsRequired {
-			e.requiredFields = append(e.requiredFields, field)
+	// add special fields
+	e.addField(&Field{
+		Name:           "_createdAt",
+		NoEdits:        true,
+		NoIndex:        true,
+		isSpecialField: true,
+		ValueFunc: func() interface{} {
+			return time.Now()
+		},
+	})
+	e.addField(&Field{
+		Name:           "_createdBy",
+		NoEdits:        true,
+		NoIndex:        true,
+		isSpecialField: true,
+		Entity:         userEntity,
+		ContextFunc: func(ctx Context) interface{} {
+			return ctx.User
+		},
+	})
+	e.addField(&Field{
+		Name:           "_updatedAt",
+		NoIndex:        true,
+		isSpecialField: true,
+		ValueFunc: func() interface{} {
+			return time.Now()
+		},
+	})
+	e.addField(&Field{
+		Name:           "_updatedBy",
+		NoIndex:        true,
+		isSpecialField: true,
+		Entity:         userEntity,
+		ContextFunc: func(ctx Context) interface{} {
+			return ctx.User
+		},
+	})
+
+	return e
+}
+
+func (e *Entity) addField(field *Field) {
+	if len(field.GroupName) != 0 {
+		if !govalidator.IsAlpha(field.GroupName) {
+			panic(errors.New("field group name contains non-alpha characters"))
 		}
+		field.datastoreFieldName = field.GroupName + "[" + field.Name + "]"
+	} else {
+		field.datastoreFieldName = field.Name
+	}
 
-		if field.DefaultValue != nil {
-			e.preparedData[field] = func(f *Field) interface{} {
-				return f.DefaultValue
-			}
-		}
+	e.Fields[field.datastoreFieldName] = field
 
-		if field.ValueFunc != nil {
-			e.preparedData[field] = func(f *Field) interface{} {
-				return f.ValueFunc()
-			}
-		}
+	if field.IsRequired {
+		e.requiredFields = append(e.requiredFields, field)
+	}
 
-		if len(field.ValidateRgx) > 0 {
-			field.fieldFunc = append(field.fieldFunc, func(c *ValueContext, v interface{}) (interface{}, error) {
-				if c.Trust == High {
-					return v, nil
-				}
-
-				var matched bool
-				var err error
-
-				switch val := v.(type) {
-				case string:
-					matched, err = regexp.Match(field.ValidateRgx, []byte(val))
-					break
-				default:
-					return v, fmt.Errorf(ErrFieldValueNotValid, c.Field.Name)
-				}
-
-				if err != nil {
-					return nil, err
-				}
-				if matched {
-					return v, nil
-				}
-
-				return v, fmt.Errorf(ErrFieldValueNotValid, c.Field.Name)
-			})
-		}
-
-		if field.Validator != nil {
-			field.fieldFunc = append(field.fieldFunc, func(c *ValueContext, v interface{}) (interface{}, error) {
-				if c.Trust == High {
-					return v, nil
-				}
-
-				ok := c.Field.Validator(v)
-				if ok {
-					return v, nil
-				}
-				return v, fmt.Errorf(ErrFieldValueNotValid, c.Field.Name)
-			})
-		}
-
-		if field.TransformFunc != nil {
-			field.fieldFunc = append(field.fieldFunc, field.TransformFunc)
+	if field.DefaultValue != nil {
+		e.preparedData[field] = func(ctx Context, f *Field) interface{} {
+			return f.DefaultValue
 		}
 	}
 
-	return e
+	if field.ValueFunc != nil {
+		e.preparedData[field] = func(ctx Context, f *Field) interface{} {
+			return f.ValueFunc()
+		}
+	}
+
+	if field.ContextFunc != nil {
+		e.preparedData[field] = func(ctx Context, f *Field) interface{} {
+			return f.ContextFunc(ctx)
+		}
+	}
+
+	if len(field.ValidateRgx) > 0 {
+		field.fieldFunc = append(field.fieldFunc, func(c *ValueContext, v interface{}) (interface{}, error) {
+			if c.Trust == High {
+				return v, nil
+			}
+
+			var matched bool
+			var err error
+
+			switch val := v.(type) {
+			case string:
+				matched, err = regexp.Match(field.ValidateRgx, []byte(val))
+				break
+			default:
+				return v, fmt.Errorf(ErrFieldValueNotValid, c.Field.Name)
+			}
+
+			if err != nil {
+				return nil, err
+			}
+			if matched {
+				return v, nil
+			}
+
+			return v, fmt.Errorf(ErrFieldValueNotValid, c.Field.Name)
+		})
+	}
+
+	if field.Validator != nil {
+		field.fieldFunc = append(field.fieldFunc, func(c *ValueContext, v interface{}) (interface{}, error) {
+			if c.Trust == High {
+				return v, nil
+			}
+
+			ok := c.Field.Validator(v)
+			if ok {
+				return v, nil
+			}
+			return v, fmt.Errorf(ErrFieldValueNotValid, c.Field.Name)
+		})
+	}
+
+	if field.TransformFunc != nil {
+		field.fieldFunc = append(field.fieldFunc, field.TransformFunc)
+	}
 }
 
 /**
@@ -153,7 +221,7 @@ func (e *Entity) RemoveFromIndexes(ctx context.Context) {
 	}
 }
 
-func (e *Entity) New() *EntityDataHolder {
+func (e *Entity) New(ctx Context) *EntityDataHolder {
 	var dataHolder = &EntityDataHolder{
 		Entity: e,
 		data:   Data{},
@@ -163,7 +231,7 @@ func (e *Entity) New() *EntityDataHolder {
 
 	// copy prepared values
 	for field, fun := range e.preparedData {
-		dataHolder.data[field] = fun(field)
+		dataHolder.data[field] = fun(ctx, field)
 	}
 
 	return dataHolder
@@ -183,19 +251,11 @@ func (e *Entity) DecodeKey(c Context, encodedKey string) (Context, *datastore.Ke
 		return c, key, err
 	}
 
-	if len(key.Namespace()) != 0 {
-		c.WithNamespace()
-	}
-
 	return c, key, err
 }
 
-func (e *Entity) NewIncompleteKey(c Context, withNamespace bool) (Context, *datastore.Key) {
+func (e *Entity) NewIncompleteKey(c Context) (Context, *datastore.Key) {
 	var key *datastore.Key
-
-	if withNamespace {
-		c.WithNamespace()
-	}
 
 	key = datastore.NewIncompleteKey(c.Context, e.Name, nil)
 
@@ -203,16 +263,12 @@ func (e *Entity) NewIncompleteKey(c Context, withNamespace bool) (Context, *data
 }
 
 // Gets appengine context and datastore key with optional namespace. It doesn't fail if request is not authenticated.
-func (e *Entity) NewKey(c Context, nameId interface{}, withNamespace bool) (Context, *datastore.Key, error) {
+func (e *Entity) NewKey(c Context, nameId interface{}) (Context, *datastore.Key, error) {
 	var key *datastore.Key
 	var err error
 
 	if nameId == nil {
 		return c, key, ErrKeyNameIdNil
-	}
-
-	if withNamespace {
-		c.WithNamespace()
 	}
 
 	if stringId, ok := nameId.(string); ok {
@@ -227,7 +283,7 @@ func (e *Entity) NewKey(c Context, nameId interface{}, withNamespace bool) (Cont
 }
 
 func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
-	var h = e.New()
+	var h = e.New(c)
 
 	// todo: fix this
 	c.r.FormValue("a")
@@ -272,20 +328,20 @@ func (e *Entity) FromBody(c Context) (*EntityDataHolder, error) {
 	var err error
 
 	if len(c.body) == 0 {
-		return e.New(), nil
+		return e.New(c), nil
 	}
 
 	var t map[string]interface{}
 	err = json.Unmarshal(c.body, &t)
 	if err != nil {
-		return e.New(), err
+		return e.New(c), err
 	}
 
 	return e.FromMap(c, t)
 }
 
 func (e *Entity) FromMap(c Context, m map[string]interface{}) (*EntityDataHolder, error) {
-	var h = e.New()
+	var h = e.New(c)
 	var err error
 
 	for name, value := range m {

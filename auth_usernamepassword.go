@@ -2,26 +2,42 @@ package sdk
 
 import (
 	"github.com/asaskevich/govalidator"
-	"time"
 	"net/http"
 	"errors"
-	"github.com/google/uuid"
 )
 
-var UserEntity *Entity
+var userEntity *Entity
 var ProfileEntity *Entity
 var lostPasswordRequest *Entity
 
+/*func DefineEntityScopes(entity *Entity, scopes ...Scope) {
+	for _, scope := range scopes {
+		userRoleEntity.addField(&Field{
+			GroupName:    entity.Name,
+			Name:         string(scope),
+			DefaultValue: true,
+		})
+	}
+}*/
+
 func init() {
-	lostPasswordRequest = NewEntity("lostPasswordRequest",
-		[]*Field{
-			{
-				Name:    "created",
-				NoEdits: true,
-				ValueFunc: func() interface{} {
-					return time.Now()
+	/*	userRoleEntity = NewEntity("userRole",
+			[]*Field{
+				{
+					Name:       "name",
+					IsRequired: true,
+				},
+				{
+					Name:       "scopes",
+					IsRequired: true,
+					Multiple:   true,
 				},
 			},
+		)
+		userRoleEntity.Cache.CacheOnWrite = true*/
+
+	lostPasswordRequest = NewEntity("lostPasswordRequest",
+		[]*Field{
 			{
 				Name:       "email",
 				NoEdits:    true,
@@ -34,16 +50,10 @@ func init() {
 				Name:         "isUnused",
 				DefaultValue: true,
 			},
-		})
-	UserEntity = NewEntity("user",
+		},
+	)
+	userEntity = NewEntity("user",
 		[]*Field{
-			{
-				Name:    "created",
-				NoEdits: true,
-				ValueFunc: func() interface{} {
-					return time.Now()
-				},
-			},
 			{
 				Name:       "email",
 				NoEdits:    true,
@@ -53,13 +63,8 @@ func init() {
 				},
 			},
 			{
-				Name:       "namespace",
-				IsRequired: true,
-				NoEdits:    true,
-				Json:       NoJsonOutput,
-				ValueFunc: func() interface{} {
-					return uuid.New().String()
-				},
+				Name:         "role",
+				DefaultValue: "user",
 			},
 			{
 				Name:       "password",
@@ -71,27 +76,19 @@ func init() {
 				},
 				TransformFunc: FuncHashTransform,
 			},
-		})
+		},
+	)
 	ProfileEntity = NewEntity("profile",
 		[]*Field{
 			{
-				Name:    "created",
-				NoEdits: true,
-				ValueFunc: func() interface{} {
-					return time.Now()
-				},
-			},
-			{
-				Name:
-				"firstName",
+				Name:       "firstName",
 				IsRequired: true,
 				Validator: func(value interface{}) bool {
 					return govalidator.IsByteLength(value.(string), 1, 64)
 				},
 			},
 			{
-				Name:
-				"lastName",
+				Name:       "lastName",
 				IsRequired: true,
 				Validator: func(value interface{}) bool {
 					return govalidator.IsByteLength(value.(string), 1, 64)
@@ -133,17 +130,24 @@ func init() {
 			{
 				Name: "phone",
 			},
-		})
+			{
+				Name: "email",
+				Validator: func(value interface{}) bool {
+					return govalidator.IsEmail(value.(string))
+				},
+			},
+		},
+	)
 }
 
 func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := NewContext(r).WithScopes(ScopeGet)
+	ctx := NewContext(r).WithScopes(ScopeRead)
 	if !ctx.IsAuthenticated {
 		ctx.PrintError(w, ErrNotAuthenticated, http.StatusUnauthorized)
 		return
 	}
 
-	ctx, key, err := ProfileEntity.NewKey(ctx, ctx.User, false)
+	ctx, key, err := ProfileEntity.NewKey(ctx, ctx.User)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
@@ -155,16 +159,16 @@ func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx.Print(w, d.Output())
+	ctx.Print(w, d.Output(ctx))
 }
 
 func GetUserProfile(r *http.Request) (map[string]interface{}, error) {
-	ctx := NewContext(r).WithScopes(ScopeGet)
+	ctx := NewContext(r).WithScopes(ScopeRead)
 	if !ctx.IsAuthenticated {
 		return nil, ErrNotAuthenticated
 	}
 
-	ctx, key, err := ProfileEntity.NewKey(ctx, ctx.User, false)
+	ctx, key, err := ProfileEntity.NewKey(ctx, ctx.User)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +178,7 @@ func GetUserProfile(r *http.Request) (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	return d.Output(), nil
+	return d.Output(ctx), nil
 }
 
 func EditUserProfileHandler(w http.ResponseWriter, r *http.Request) {
@@ -194,7 +198,7 @@ func EditUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, key, err := ProfileEntity.NewKey(ctx, ctx.User, false)
+	ctx, key, err := ProfileEntity.NewKey(ctx, ctx.User)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
@@ -206,145 +210,127 @@ func EditUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx.Print(w, h.Output())
+	ctx.Print(w, h.Output(ctx))
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := NewContext(r).WithScopes(ScopeGet)
-	id_token, profile, err := Login(ctx)
-	if err != nil {
-		ctx.PrintError(w, err, http.StatusUnauthorized)
+	ctx := NewContext(r).WithScopes(ScopeRead)
+
+	if ctx.IsAuthenticated {
+		ctx.PrintError(w, ErrAlreadyAuthenticated, http.StatusInternalServerError)
 		return
 	}
 
-	ctx.Token = id_token
+	do, err := userEntity.FromForm(ctx)
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
 
-	ctx.Print(w, profile)
+	ctx, key, err := userEntity.NewKey(ctx, do.GetInput("email"))
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	d, err := userEntity.Get(ctx, key)
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	err = decrypt([]byte(d.Get("password").([]uint8)), []byte(do.GetInput("password").(string)))
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	ctx, profileKey, err := ProfileEntity.NewKey(ctx, do.GetInput("email"))
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	profileD, err := ProfileEntity.Get(ctx, profileKey)
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	var data = d.Output(ctx)
+	for name, value := range profileD.Output(ctx) {
+		data[name] = value
+	}
+
+	err = ctx.NewUserToken(d.id, d.Get("role").(string))
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Print(w, data)
 }
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := NewContext(r).WithScopes(ScopeAdd)
 
-	id_token, profile, err := Register(ctx)
-	if err != nil {
-		ctx.PrintError(w, err, http.StatusUnauthorized)
+	if ctx.IsAuthenticated {
+		ctx.PrintError(w, ErrAlreadyAuthenticated, http.StatusInternalServerError)
 		return
 	}
 
-	ctx.Token = id_token
+	// Add user
+	d, err := userEntity.FromForm(ctx)
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
 
-	ctx.Print(w, profile)
+	profileData, err := ProfileEntity.FromForm(ctx)
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	ctx, key, err := userEntity.NewKey(ctx, d.Get("email"))
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	key, err = userEntity.Add(ctx, key, d)
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	ctx, profileKey, err := ProfileEntity.NewKey(ctx, d.id)
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	profileKey, err = ProfileEntity.Add(ctx, profileKey, profileData)
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	var data = d.Output(ctx)
+
+	err = ctx.NewUserToken(d.id, d.Get("role").(string))
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	for name, value := range profileData.Output(ctx) {
+		data[name] = value
+	}
+
+	ctx.Print(w, data)
 }
 
 var (
 	ErrAlreadyAuthenticated = errors.New("already authenticated")
 )
-
-func Register(ctx Context) (Token, map[string]interface{}, error) {
-	var id_token Token
-
-	if ctx.IsAuthenticated {
-		return id_token, nil, ErrAlreadyAuthenticated
-	}
-
-	// Add user
-	d, err := UserEntity.FromForm(ctx)
-	if err != nil {
-		return id_token, nil, err
-	}
-
-	profileData, err := ProfileEntity.FromForm(ctx)
-	if err != nil {
-		return id_token, nil, err
-	}
-
-	ctx, key, err := UserEntity.NewKey(ctx, d.Get("email"), false)
-	if err != nil {
-		return id_token, nil, err
-	}
-
-	ctx, profileKey, err := ProfileEntity.NewKey(ctx, d.Get("email"), false)
-	if err != nil {
-		return id_token, nil, err
-	}
-
-	key, err = UserEntity.Add(ctx, key, d)
-	if err != nil {
-		if err == EntityAlreadyExists {
-			// todo
-			return id_token, nil, err
-		}
-		return id_token, nil, err
-	}
-
-	profileKey, err = ProfileEntity.Add(ctx, profileKey, profileData)
-	if err != nil {
-		if err == EntityAlreadyExists {
-			// todo
-			return id_token, nil, err
-		}
-		return id_token, nil, err
-	}
-
-	var data = d.Output()
-
-	id_token, err = NewToken(d.Get("namespace").(string), d.GetInput("email").(string))
-	if err != nil {
-		return id_token, nil, err
-	}
-
-	for name, value := range profileData.Output() {
-		data[name] = value
-	}
-
-	return id_token, data, err
-}
-
-func Login(ctx Context) (Token, map[string]interface{}, error) {
-	var id_token Token
-
-	if ctx.IsAuthenticated {
-		return id_token, nil, ErrAlreadyAuthenticated
-	}
-
-	do, err := UserEntity.FromForm(ctx)
-	if err != nil {
-		return id_token, nil, err
-	}
-
-	ctx, key, err := UserEntity.NewKey(ctx, do.GetInput("email"), false)
-	if err != nil {
-		return id_token, nil, err
-	}
-
-	d, err := UserEntity.Get(ctx, key)
-	if err != nil {
-		return id_token, nil, err
-	}
-
-	err = decrypt([]byte(d.Get("password").([]uint8)), []byte(do.GetInput("password").(string)))
-	if err != nil {
-		return id_token, nil, err
-	}
-
-	ctx, profileKey, err := ProfileEntity.NewKey(ctx, do.GetInput("email"), false)
-	if err != nil {
-		return id_token, nil, err
-	}
-
-	profileD, err := ProfileEntity.Get(ctx, profileKey)
-	if err != nil {
-		return id_token, nil, err
-	}
-
-	var data = d.Output()
-	for name, value := range profileD.Output() {
-		data[name] = value
-	}
-
-	id_token, err = NewToken(d.Get("namespace").(string), d.Get("email").(string))
-	if err != nil {
-		return id_token, nil, err
-	}
-	return id_token, data, err
-}

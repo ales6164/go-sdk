@@ -39,7 +39,7 @@ var clientIdSecret = NewEntity("_client", []*Field{
 
 func NewClientRequest(a *SDK) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithScopes(ScopeGet, ScopeAdd)
+		ctx := NewContext(r).WithScopes(ScopeRead, ScopeAdd)
 
 		formHolder, _ := DefaultDataHolder.FromForm(ctx)
 
@@ -72,7 +72,7 @@ func NewClientRequest(a *SDK) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		ctx, key := clientIdSecret.NewIncompleteKey(ctx, false)
+		ctx, key := clientIdSecret.NewIncompleteKey(ctx)
 
 		key, err = clientIdSecret.Add(ctx, key, holder)
 		if err != nil {
@@ -91,7 +91,7 @@ func NewClientRequest(a *SDK) func(w http.ResponseWriter, r *http.Request) {
 }
 
 func IssueClientToken(w http.ResponseWriter, r *http.Request) {
-	ctx := NewContext(r).WithScopes(ScopeGet, ScopeEdit)
+	ctx := NewContext(r).WithScopes(ScopeRead, ScopeEdit)
 
 	/*clientID, clientSecret := r.FormValue("clientID"), r.FormValue("clientSecret")*/
 	formHolder, _ := DefaultDataHolder.FromForm(ctx)
@@ -113,13 +113,11 @@ func IssueClientToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id_token, err := NewToken("", formHolder.GetInput("clientID").(string))
+	err = ctx.NewUserToken(holder.id, "client")
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusUnauthorized)
 		return
 	}
-
-	ctx.Token = id_token
 
 	ctx.Print(w, "ok")
 }

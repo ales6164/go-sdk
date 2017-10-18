@@ -7,10 +7,12 @@ import (
 type Scope string
 
 var (
-	ScopeGet    Scope = "get"
-	ScopeEdit   Scope = "edit"
-	ScopePut    Scope = "put"
+	ScopeOwn   Scope = "own"   // is read, add, edit and delete scopes combined
+	ScopeWrite Scope = "write" // is add, edit and delete scopes combined
+
+	ScopeRead   Scope = "read"
 	ScopeAdd    Scope = "add"
+	ScopeEdit   Scope = "edit"
 	ScopeDelete Scope = "delete"
 )
 
@@ -22,8 +24,12 @@ type Field struct {
 	NoEdits    bool   `json:"noEdits"` // default true
 	IsRequired bool   `json:"isRequired"`
 
-	DefaultValue interface{}        `json:"defaultValue"`
-	ValueFunc    func() interface{} `json:"valueFunc"`
+	Entity *Entity `json:"-"`      // if set, value should be encoded entity key
+	Lookup bool    `json:"lookup"` // if true it looks up entity value on output
+
+	DefaultValue interface{}                   `json:"defaultValue"`
+	ValueFunc    func() interface{}            `json:"-"`
+	ContextFunc  func(ctx Context) interface{} `json:"-"`
 
 	Multiple      bool                                                            `json:"multiple"`
 	NoIndex       bool                                                            `json:"noIndex"`
@@ -33,16 +39,17 @@ type Field struct {
 	Validator     func(value interface{}) bool                                    `json:"-"`
 
 	//GroupEntity GroupEntity `json:"groupEntity"`   // if defined, value stored as an separate entity; in field stored key
-	Widget      Widget       `json:"widgetOptions"` // used for automatic admin html template creation
+	Widget Widget `json:"widgetOptions"` // used for automatic admin html template creation
 
 	SearchProps []interface{} `json:"-"`
 
-	datastoreFieldName string
-	fieldFunc []func(ctx *ValueContext, v interface{}) (interface{}, error)
+	isSpecialField     bool   `json:"-"`
+	datastoreFieldName string `json:"-"`
+	fieldFunc []func(ctx *ValueContext, v interface{}) (interface{}, error) `json:"-"`
 }
 
 type GroupEntity struct {
-	Entity      *Entity
+	Entity *Entity
 }
 
 type ValueContext struct {

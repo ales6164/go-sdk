@@ -49,12 +49,14 @@ func (e *EntityDataHolder) GetInput(name string) interface{} {
 	return e.input[name]
 }
 
-func output(id interface{}, data Data) map[string]interface{} {
+func output(ctx Context, id string, data Data, cacheLookup bool) map[string]interface{} {
 	var output = map[string]interface{}{}
 	var multiples []string
 
 	// range over data. Value can be single value or if the field it Multiple then it's an array
 	for field, value := range data {
+		var doCacheLookup = cacheLookup && field.Lookup && field.Entity != nil
+
 		if field.Json == NoJsonOutput {
 			continue
 		}
@@ -90,19 +92,28 @@ func output(id interface{}, data Data) map[string]interface{} {
 						groupField["items"] = append(groupField["items"].([]map[string]interface{}), map[string]interface{}{})
 					}
 
+					if doCacheLookup {
+						v, _ = field.Entity.Lookup(ctx, v.(string))
+					}
+
 					groupField["items"].([]map[string]interface{})[groupField["LastPropCount"].(int)][field.Name] = v
 					groupField["count"] = len(groupField["items"].([]map[string]interface{}))
-
-					/*delete(groupField, "LastPropCount")
-					delete(groupField, "LastProp")*/
 
 					output[field.GroupName] = groupField
 
 				}
 			} else {
+				if doCacheLookup {
+					value, _ = field.Entity.Lookup(ctx, value.(string))
+				}
+
 				output[field.GroupName].(map[string]interface{})[field.Name] = value
 			}
 		} else {
+			if doCacheLookup {
+				value, _ = field.Entity.Lookup(ctx, value.(string))
+			}
+
 			output[field.Name] = value
 		}
 	}
@@ -117,7 +128,7 @@ func output(id interface{}, data Data) map[string]interface{} {
 	return output
 }
 
-func flatOutput(id interface{}, data Data) map[string]interface{} {
+func flatOutput(id string, data Data) map[string]interface{} {
 	var output = map[string]interface{}{}
 
 	for field, value := range data {
@@ -137,16 +148,16 @@ func flatOutput(id interface{}, data Data) map[string]interface{} {
 	return output
 }
 
-func (e *EntityDataHolder) Output() map[string]interface{} {
-	return output(e.id, e.data)
+func (e *EntityDataHolder) Output(ctx Context) map[string]interface{} {
+	return output(ctx, e.id, e.data, true)
 }
 
 func (e *EntityDataHolder) FlatOutput() map[string]interface{} {
 	return flatOutput(e.id, e.data)
 }
 
-func (e *EntityDataHolder) JSON() (string, error) {
-	bs, err := json.Marshal(e.Output())
+func (e *EntityDataHolder) JSON(ctx Context) (string, error) {
+	bs, err := json.Marshal(e.Output(ctx))
 	return string(bs), err
 }
 

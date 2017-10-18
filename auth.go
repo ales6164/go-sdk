@@ -4,12 +4,10 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"time"
 	"errors"
-	"net/http"
-	"github.com/google/uuid"
 )
 
 func AuthMiddleware(signingKey []byte) *JWTMiddleware {
-	return New(Options{
+	return New(MiddlewareOptions{
 		Extractor: FromFirst(
 			FromAuthHeader,
 			FromParameter("token"),
@@ -27,50 +25,72 @@ type Token struct {
 	Expires int64  `json:"expires"`
 }
 
+
+
 var (
 	ErrIllegalAction = errors.New("illegal action")
 )
 
-func NewToken(ns string, usr string) (Token, error) {
-	if len(ns) == 0 && len(usr) == 0 {
-		return Token{}, ErrIllegalAction
+func (c *Context) NewUserToken(userKey string, userRoleKey string) (error) {
+	var err error
+	c.Token, err = newToken(userKey, userRoleKey)
+	return err
+}
+
+func newToken(userKey string, userRoleKey string) (Token, error) {
+	var tkn Token
+
+	if len(userKey) == 0 || len(userRoleKey) == 0 {
+		return tkn, ErrIllegalAction
 	}
 
 	var exp = time.Now().Add(time.Hour * 12).Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"aud":       "api",
-		"nbf":       time.Now().Add(-time.Minute * 10).Unix(),
-		"exp":       exp,
-		"iat":       time.Now().Unix(),
-		"iss":       "sdk",
-		"sub":       usr,
-		"namespace": ns,
+		"aud":  "api",
+		"nbf":  time.Now().Add(-time.Minute).Unix(),
+		"exp":  exp,
+		"iat":  time.Now().Unix(),
+		"iss":  "sdk",
+		"sub":  userKey,
+		"role": userRoleKey,
 	})
 
 	signed, err := token.SignedString(signingKey)
+	if err != nil {
+		return tkn, err
+	}
 
-	var t = Token{signed, exp}
-
-	return t, err
+	return Token{signed, exp}, nil
 }
 
-/*func SetSecureSession(id_token string, w http.ResponseWriter, r *http.Request) error {
-	session, err := session.Get(r, secureSessionName)
+/*
+func (c *Context) NewAnonymousToken() (error) {
+	var exp = time.Now().Add(time.Hour * 12).Unix()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"aud":  "api",
+		"nbf":  time.Now().Add(-time.Minute).Unix(),
+		"exp":  exp,
+		"iat":  time.Now().Unix(),
+		"iss":  "sdk",
+	})
+
+	signed, err := token.SignedString(signingKey)
 	if err != nil {
 		return err
 	}
-	session.Values["id_token"] = id_token
-	return session.Save(r, w)
-}*/
+
+	c.Token = Token{signed, exp}
+	return nil
+}
 
 func (a *SDK) AnonTokenHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := NewToken("", uuid.New().String())
+		ctx := NewContext(r)
+		err := ctx.NewAnonymousToken()
 		if err != nil {
 			printError(w, err, http.StatusInternalServerError)
 			return
 		}
-
-		printData(w, token)
 	})
 }
+*/

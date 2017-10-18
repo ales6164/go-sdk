@@ -15,9 +15,11 @@ type Context struct {
 	scopes map[Scope]bool
 	err    error
 
-	Context         context.Context
-	User            string
-	Namespace       string
+	Context context.Context
+
+	User string
+	Role string
+
 	IsAuthenticated bool
 	Token           Token
 
@@ -25,45 +27,38 @@ type Context struct {
 }
 
 func NewContext(r *http.Request) Context {
-	isAuthenticated, namespace, username, renewedToken, err := getUser(r)
+	isAuthenticated, userRole, userKey, renewedToken, err := getUser(r)
 	body, _ := ioutil.ReadAll(r.Body)
 	r.Body.Close()
+
+	if len(userRole) == 0 {
+		userRole = "guest"
+	}
+
 	return Context{
 		r:               r,
 		Context:         appengine.NewContext(r),
 		IsAuthenticated: isAuthenticated,
-		Namespace:       namespace,
-		User:            username,
+		Role:            userRole,
+		User:            userKey,
 		Token:           renewedToken,
 		err:             err,
 		body:            body,
 	}
 }
 
-func (c Context) HasScope(scope Scope) bool {
-	return c.scopes[scope]
-}
-
-func (c Context) WithScopes(scopes ...Scope) Context {
-	c.scopes = map[Scope]bool{}
-	for _, scope := range scopes {
-		c.scopes[scope] = true
+// return true if userKey matches with userKey in token
+func (c Context) UserMatches(userKey interface{}) bool {
+	if userKeyString, ok := userKey.(string); ok {
+		return userKeyString == c.User
 	}
-	return c
-}
-
-func (c Context) WithNamespace() {
-	if c.IsAuthenticated && len(c.Namespace) != 0 {
-		c.Context, c.err = appengine.Namespace(c.Context, c.Namespace)
-	} else {
-		c.err = ErrNotAuthenticated
-	}
+	return false
 }
 
 func getUser(r *http.Request) (bool, string, string, Token, error) {
 	var isAuthenticated bool
-	var namespace string
-	var username string
+	var userRoleKey string
+	var userKey string
 	var renewedToken Token
 	var err error
 
@@ -76,21 +71,21 @@ func getUser(r *http.Request) (bool, string, string, Token, error) {
 			err = claims.Valid()
 			if err == nil {
 				if username, ok := claims["sub"].(string); ok {
-					if namespace, ok := claims["namespace"].(string); ok {
-						return true, namespace, username, renewedToken, err
+					if userRoleKey, ok := claims["role"].(string); ok {
+						return true, userRoleKey, username, renewedToken, err
 					}
 				}
-				return isAuthenticated, namespace, username, renewedToken, ErrIllegalAction
+				return isAuthenticated, userRoleKey, userKey, renewedToken, ErrIllegalAction
 			} else if exp, ok := claims["exp"].(float64); ok {
 				// check if it's less than a week old
 				if time.Now().Unix()-int64(exp) < time.Now().Add(time.Hour * 24 * 7).Unix() {
-					if username, ok := claims["sub"].(string); ok {
-						if namespace, ok := claims["namespace"].(string); ok {
-							renewedToken, err = NewToken(namespace, username)
+					if userKey, ok := claims["sub"].(string); ok {
+						if userRoleKey, ok := claims["role"].(string); ok {
+							renewedToken, err = newToken(userKey, userRoleKey)
 							if err != nil {
-								return isAuthenticated, namespace, username, renewedToken, err
+								return isAuthenticated, userRoleKey, userKey, renewedToken, err
 							}
-							return true, namespace, username, renewedToken, err
+							return true, userRoleKey, userKey, renewedToken, err
 						}
 					}
 				}
@@ -98,5 +93,5 @@ func getUser(r *http.Request) (bool, string, string, Token, error) {
 		}
 	}
 
-	return isAuthenticated, namespace, username, renewedToken, err
+	return isAuthenticated, userRoleKey, userKey, renewedToken, err
 }

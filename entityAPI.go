@@ -27,7 +27,7 @@ func (a *SDK) EnableEntityAPI(e *Entity, fieldPosition []string) {
 
 func (e *Entity) handleGetWithFields() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithScopes(ScopeGet)
+		ctx := NewContext(r).WithScopes(ScopeRead)
 		vars := mux.Vars(r)
 		encodedKey := vars["encodedKey"]
 
@@ -56,7 +56,7 @@ func (e *Entity) handleGetWithFields() func(w http.ResponseWriter, r *http.Reque
 
 		ctx.Print(w, map[string]interface{}{
 			"fields": fields,
-			"data":   dataHolder.Output(),
+			"data":   dataHolder.Output(ctx),
 		})
 	}
 }
@@ -78,7 +78,7 @@ func (e *Entity) handleGetFields() func(w http.ResponseWriter, r *http.Request) 
 
 		ctx.Print(w, map[string]interface{}{
 			"fields": fields,
-			"data":   e.New().Output(),
+			"data":   e.New(ctx).Output(ctx),
 		})
 	}
 }
@@ -104,14 +104,14 @@ func (e *Entity) handleGet(fieldPosition []string) func(w http.ResponseWriter, r
 
 		ctx.Print(w, map[string]interface{}{
 			"fields": fieldPosition,
-			"data":   dataHolder.Output(),
+			"data":   dataHolder.Output(ctx),
 		})
 	}
 }
 
 func (e *Entity) handlePost() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithScopes(ScopeEdit, ScopePut, ScopeAdd)
+		ctx := NewContext(r).WithScopes(ScopeEdit, ScopeWrite, ScopeAdd)
 		vars := mux.Vars(r)
 		encodedKey := vars["encodedKey"]
 
@@ -129,7 +129,7 @@ func (e *Entity) handlePost() func(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else {
-			ctx, key = e.NewIncompleteKey(ctx, true)
+			ctx, key = e.NewIncompleteKey(ctx)
 		}
 
 		key, err = e.Post(ctx, key, holder)
@@ -138,13 +138,13 @@ func (e *Entity) handlePost() func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		ctx.Print(w, holder.Output())
+		ctx.Print(w, holder.Output(ctx))
 	}
 }
 
 func (e *Entity) handleQuery(fieldPosition []string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithScopes(ScopeGet)
+		ctx := NewContext(r).WithScopes(ScopeRead)
 
 		q := r.URL.Query()
 
@@ -155,7 +155,7 @@ func (e *Entity) handleQuery(fieldPosition []string) func(w http.ResponseWriter,
 			limit, _ = strconv.Atoi(limit_str)
 		}
 
-		dataHolder, err := e.Query(ctx, ctx.Namespace, sort, limit)
+		dataHolder, err := e.Query(ctx, sort, limit)
 		if err != nil {
 			ctx.PrintError(w, err, http.StatusInternalServerError)
 			return
@@ -163,7 +163,7 @@ func (e *Entity) handleQuery(fieldPosition []string) func(w http.ResponseWriter,
 
 		var data []map[string]interface{}
 		for _, h := range dataHolder {
-			data = append(data, h.Output())
+			data = append(data, h.Output(ctx))
 		}
 
 		ctx.Print(w, map[string]interface{}{

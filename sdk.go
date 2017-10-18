@@ -111,8 +111,8 @@ func (a *SDK) EnableAuthAPI() {
 	a.HandleFunc("/profile", GetUserProfileHandler).Methods(http.MethodGet)
 	a.HandleFunc("/profile", EditUserProfileHandler).Methods(http.MethodPut)
 
-	a.HandleFunc("/auth/iam", AuthWithIAmUser(a)).Methods(http.MethodPost)
-	a.HandleFunc("/auth/iam/verify", VerifyIAmUser).Methods(http.MethodPost)
+	/*a.HandleFunc("/auth/iam", AuthWithIAmUser(a)).Methods(http.MethodPost)
+	a.HandleFunc("/auth/iam/verify", VerifyIAmUser).Methods(http.MethodPost)*/
 
 	a.Router.Handle("/auth/client", http.HandlerFunc(NewClientRequest(a)))
 	a.Router.Handle("/auth/client/issue-token", http.HandlerFunc(IssueClientToken))
@@ -135,14 +135,14 @@ func (a *SDK) EnableAuthAPI() {
 
 	// authorize and get user profile
 	a.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithScopes(ScopeGet)
+		ctx := NewContext(r).WithScopes(ScopeRead)
 		if ctx.err != nil {
 			ctx.PrintError(w, ctx.err, http.StatusInternalServerError)
 			return
 		}
 		if ctx.IsAuthenticated {
 
-			ctx, key, err := ProfileEntity.NewKey(ctx, ctx.User, false)
+			ctx, key, err := ProfileEntity.NewKey(ctx, ctx.User)
 			if err != nil {
 				ctx.PrintError(w, err, http.StatusInternalServerError)
 				return
@@ -154,7 +154,7 @@ func (a *SDK) EnableAuthAPI() {
 				return
 			}
 
-			ctx.Print(w, d.Output())
+			ctx.Print(w, d.Output(ctx))
 			return
 		}
 
@@ -175,4 +175,4 @@ func (a *SDK) Handler(handlerFunc http.HandlerFunc) http.Handler {
 	return a.middleware.Handler(http.Handler(handlerFunc))
 }
 
-var DefaultDataHolder = NewEntity("", []*Field{})
+var DefaultDataHolder = NewEntity("DefaultDataHolder", []*Field{})

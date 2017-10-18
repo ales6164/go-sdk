@@ -20,7 +20,7 @@ type errorHandler func(w http.ResponseWriter, r *http.Request, err string)
 type TokenExtractor func(r *http.Request) (string, error)
 
 // Options is a struct for specifying configuration options for the middleware.
-type Options struct {
+type MiddlewareOptions struct {
 	// Redirect path
 	RedirectOnError string
 	// The function that will return the Key to validate the JWT.
@@ -54,7 +54,7 @@ type Options struct {
 }
 
 type JWTMiddleware struct {
-	Options Options
+	Options MiddlewareOptions
 }
 
 func OnError(w http.ResponseWriter, r *http.Request, err string) {
@@ -62,11 +62,11 @@ func OnError(w http.ResponseWriter, r *http.Request, err string) {
 }
 
 // New constructs a new Secure instance with supplied options.
-func New(options ...Options) *JWTMiddleware {
+func New(options ...MiddlewareOptions) *JWTMiddleware {
 
-	var opts Options
+	var opts MiddlewareOptions
 	if len(options) == 0 {
-		opts = Options{}
+		opts = MiddlewareOptions{}
 	} else {
 		opts = options[0]
 	}
