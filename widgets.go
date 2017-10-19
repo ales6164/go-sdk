@@ -26,11 +26,11 @@ type InputWidget struct {
 	List         []string `json:"list"`
 }
 
-func (w InputWidget) WidgetName() string {
-	return "input"
+type SummerNoteWidget struct {
+	Widget       `json:"-"`
+	Label string `json:"label"`
 }
 
-//todo:
 type SelectWidget struct {
 	Widget                `json:"-"`
 	Label        string   `json:"label"`
@@ -53,20 +53,26 @@ type SelectWidget struct {
 	List         []string `json:"list"`
 }
 
-func (w SelectWidget) WidgetName() string {
-	return "select"
-}
-
-
 // media widget example
 type MediaWidget struct {
-	Widget                `json:"-"`
-	Multiple       string         `json:"-"`
-	Type       string         `json:"-"`
-	TransformTool       TransformTool         `json:"-"`
-
+	Widget                      `json:"-"`
+	Multiple      string        `json:"-"`
+	Type          string        `json:"-"`
+	TransformTool TransformTool `json:"-"`
 }
 type TransformTool struct {
 	CropToSizes []string // evolve
 	// ... and others
+}
+
+func (w SelectWidget) WidgetName() string {
+	return "select"
+}
+
+func (w InputWidget) WidgetName() string {
+	return "input"
+}
+
+func (w SummerNoteWidget) WidgetName() string {
+	return "summernote"
 }

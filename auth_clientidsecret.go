@@ -94,7 +94,14 @@ func IssueClientToken(w http.ResponseWriter, r *http.Request) {
 	ctx := NewContext(r).WithScopes(ScopeRead, ScopeEdit)
 
 	/*clientID, clientSecret := r.FormValue("clientID"), r.FormValue("clientSecret")*/
-	formHolder, _ := DefaultDataHolder.FromForm(ctx)
+	formHolder, err := DefaultDataHolder.FromForm(ctx)
+	if err != nil {
+		ctx.PrintError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	/*ctx.Print(w, formHolder.input)
+	return*/
 
 	ctx, key, err := clientIdSecret.DecodeKey(ctx, formHolder.GetInput("clientID").(string))
 	if err != nil {

@@ -245,7 +245,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, profileKey, err := ProfileEntity.NewKey(ctx, do.GetInput("email"))
+	ctx, profileKey, err := ProfileEntity.NewKey(ctx, d.id)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
