@@ -60,6 +60,7 @@ type MediaWidget struct {
 	Type          string        `json:"-"`
 	TransformTool TransformTool `json:"-"`
 }
+
 type TransformTool struct {
 	CropToSizes []string // evolve
 	// ... and others
