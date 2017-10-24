@@ -1,10 +1,10 @@
 package sdk
 
 import (
-	"golang.org/x/net/context"
-	"google.golang.org/appengine/datastore"
 	"errors"
 	"fmt"
+	"golang.org/x/net/context"
+	"google.golang.org/appengine/datastore"
 )
 
 var (

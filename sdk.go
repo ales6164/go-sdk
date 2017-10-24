@@ -1,18 +1,19 @@
 package sdk
 
 import (
+	"encoding/gob"
+	"net/http"
+	"time"
+
 	"github.com/gorilla/mux"
+	"github.com/gorilla/securecookie"
+	"github.com/gorilla/sessions"
 	"golang.org/x/net/context"
 	"google.golang.org/appengine/datastore"
-	"net/http"
-	"github.com/gorilla/sessions"
-	"github.com/gorilla/securecookie"
-	"encoding/gob"
-	"time"
 )
 
 type SDK struct {
-	Router       *mux.Router
+	Router *mux.Router
 	*AppOptions
 	middleware   *JWTMiddleware
 	sessionStore *sessions.CookieStore

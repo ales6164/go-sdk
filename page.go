@@ -1,8 +1,8 @@
 package sdk
 
 import (
-	"path/filepath"
 	"net/http"
+	"path/filepath"
 	"strings"
 )
 

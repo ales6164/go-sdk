@@ -1,9 +1,9 @@
 package sdk
 
 import (
+	"errors"
 	"github.com/asaskevich/govalidator"
 	"net/http"
-	"errors"
 )
 
 var userEntity *Entity

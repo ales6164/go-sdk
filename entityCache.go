@@ -33,9 +33,9 @@ func (e *Entity) cacheData(ctx Context, holder *EntityDataHolder) (map[string]in
 	var output = output(ctx, holder.id, holder.data, false)
 
 	var item = &memcache.Item{
-		Key:    holder.id,
+		Key:        holder.id,
 		Expiration: e.Cache.Expiration,
-		Object: output,
+		Object:     output,
 	}
 
 	return output, memcache.Gob.Set(ctx.Context, item)

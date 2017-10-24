@@ -1,12 +1,12 @@
 package sdk
 
 import (
-	"time"
-	"math/rand"
-	"path/filepath"
-	"os"
-	"io"
 	"archive/zip"
+	"io"
+	"math/rand"
+	"os"
+	"path/filepath"
+	"time"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"

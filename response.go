@@ -2,8 +2,8 @@ package sdk
 
 import (
 	"encoding/json"
-	"net/http"
 	"fmt"
+	"net/http"
 )
 
 func printError(w http.ResponseWriter, err error, code int) {

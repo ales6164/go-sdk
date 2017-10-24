@@ -1,13 +1,13 @@
 package sdk
 
 import (
-	"net/http"
 	"github.com/dgrijalva/jwt-go"
-	gctx"github.com/gorilla/context"
-	"time"
+	gctx "github.com/gorilla/context"
 	"golang.org/x/net/context"
 	"google.golang.org/appengine"
 	"io/ioutil"
+	"net/http"
+	"time"
 )
 
 type Context struct {
@@ -78,7 +78,7 @@ func getUser(r *http.Request) (bool, string, string, Token, error) {
 				return isAuthenticated, userRoleKey, userKey, renewedToken, ErrIllegalAction
 			} else if exp, ok := claims["exp"].(float64); ok {
 				// check if it's less than a week old
-				if time.Now().Unix()-int64(exp) < time.Now().Add(time.Hour * 24 * 7).Unix() {
+				if time.Now().Unix()-int64(exp) < time.Now().Add(time.Hour*24*7).Unix() {
 					if userKey, ok := claims["sub"].(string); ok {
 						if userRoleKey, ok := claims["role"].(string); ok {
 							renewedToken, err = newToken(userKey, userRoleKey)

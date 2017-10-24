@@ -43,9 +43,9 @@ type Field struct {
 
 	SearchProps []interface{} `json:"-"`
 
-	isSpecialField     bool   `json:"-"`
-	datastoreFieldName string `json:"-"`
-	fieldFunc []func(ctx *ValueContext, v interface{}) (interface{}, error) `json:"-"`
+	isSpecialField     bool                                                          `json:"-"`
+	datastoreFieldName string                                                        `json:"-"`
+	fieldFunc          []func(ctx *ValueContext, v interface{}) (interface{}, error) `json:"-"`
 }
 
 type GroupEntity struct {

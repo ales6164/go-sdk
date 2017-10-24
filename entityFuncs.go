@@ -1,14 +1,13 @@
 package sdk
 
 import (
-	"golang.org/x/crypto/bcrypt"
-	"strconv"
 	"errors"
+	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/appengine/search"
+	"strconv"
 )
 
-
-func FuncToFloatTransform(c *ValueContext,  value interface{}) (interface{}, error) {
+func FuncToFloatTransform(c *ValueContext, value interface{}) (interface{}, error) {
 	if _, ok := value.(float64); ok {
 		return value, nil
 	}

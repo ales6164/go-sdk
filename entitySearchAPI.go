@@ -1,9 +1,9 @@
 package sdk
 
 import (
-	"net/http"
-	"google.golang.org/appengine/search"
 	"golang.org/x/net/context"
+	"google.golang.org/appengine/search"
+	"net/http"
 	"net/url"
 	"strconv"
 )
@@ -11,7 +11,6 @@ import (
 func (a *SDK) EnableEntitySearchAPI(e *Entity, index *DocumentDefinition, fieldPosition []string) {
 	a.HandleFunc("/"+e.Name+"/search", e.handleSearch(index, fieldPosition)).Methods(http.MethodGet)
 }
-
 
 func (e *Entity) handleSearch(dd *DocumentDefinition, fieldPosition []string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {

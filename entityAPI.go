@@ -1,16 +1,16 @@
 package sdk
 
 import (
-	"net/http"
 	"github.com/gorilla/mux"
 	"google.golang.org/appengine/datastore"
+	"net/http"
 	"strconv"
 )
 
 var enabledAPIs []API
 
 type API struct {
-	Name string `json:"name"`
+	Name   string   `json:"name"`
 	Fields []string `json:"fields"`
 }
 

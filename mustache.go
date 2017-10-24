@@ -136,7 +136,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 		}
 
 		// put text into an item
-		text = text[0: len(text)-len(tmpl.otag)]
+		text = text[0 : len(text)-len(tmpl.otag)]
 		section.elems = append(section.elems, &textElement{[]byte(text)})
 		if tmpl.p < len(tmpl.data) && tmpl.data[tmpl.p] == '{' {
 			text, err = tmpl.readString("}" + tmpl.ctag)
@@ -150,7 +150,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 		}
 
 		//trim the close tag off the text
-		tag := strings.TrimSpace(text[0: len(text)-len(tmpl.ctag)])
+		tag := strings.TrimSpace(text[0 : len(text)-len(tmpl.ctag)])
 
 		if len(tag) == 0 {
 			return parseError{tmpl.curline, "empty tag"}
@@ -193,7 +193,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 			if tag[len(tag)-1] != '=' {
 				return parseError{tmpl.curline, "Invalid meta tag"}
 			}
-			tag = strings.TrimSpace(tag[1: len(tag)-1])
+			tag = strings.TrimSpace(tag[1 : len(tag)-1])
 			newtags := strings.SplitN(tag, " ", 2)
 			if len(newtags) == 2 {
 				tmpl.otag = newtags[0]
@@ -202,7 +202,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 		case '{':
 			if tag[len(tag)-1] == '}' {
 				//use a raw tag
-				section.elems = append(section.elems, &varElement{tag[1: len(tag)-1], true})
+				section.elems = append(section.elems, &varElement{tag[1 : len(tag)-1], true})
 			}
 		default:
 			section.elems = append(section.elems, &varElement{tag, false})
@@ -222,7 +222,7 @@ func (tmpl *Template) parse() error {
 		}
 
 		// put text into an item
-		text = text[0: len(text)-len(tmpl.otag)]
+		text = text[0 : len(text)-len(tmpl.otag)]
 		tmpl.elems = append(tmpl.elems, &textElement{[]byte(text)})
 
 		if tmpl.p < len(tmpl.data) && tmpl.data[tmpl.p] == '{' {
@@ -237,7 +237,7 @@ func (tmpl *Template) parse() error {
 		}
 
 		//trim the close tag off the text
-		tag := strings.TrimSpace(text[0: len(text)-len(tmpl.ctag)])
+		tag := strings.TrimSpace(text[0 : len(text)-len(tmpl.ctag)])
 		if len(tag) == 0 {
 			return parseError{tmpl.curline, "empty tag"}
 		}
@@ -273,7 +273,7 @@ func (tmpl *Template) parse() error {
 			if tag[len(tag)-1] != '=' {
 				return parseError{tmpl.curline, "Invalid meta tag"}
 			}
-			tag = strings.TrimSpace(tag[1: len(tag)-1])
+			tag = strings.TrimSpace(tag[1 : len(tag)-1])
 			newtags := strings.SplitN(tag, " ", 2)
 			if len(newtags) == 2 {
 				tmpl.otag = newtags[0]
@@ -282,7 +282,7 @@ func (tmpl *Template) parse() error {
 		case '{':
 			//use a raw tag
 			if tag[len(tag)-1] == '}' {
-				tmpl.elems = append(tmpl.elems, &varElement{tag[1: len(tag)-1], true})
+				tmpl.elems = append(tmpl.elems, &varElement{tag[1 : len(tag)-1], true})
 			}
 		default:
 			tmpl.elems = append(tmpl.elems, &varElement{tag, false})

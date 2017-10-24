@@ -1,16 +1,16 @@
 package sdk
 
 import (
-	"google.golang.org/appengine/datastore"
-	"regexp"
-	"fmt"
-	"errors"
-	"github.com/asaskevich/govalidator"
-	"reflect"
-	"google.golang.org/appengine/delay"
-	"golang.org/x/net/context"
-	"google.golang.org/appengine/log"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/asaskevich/govalidator"
+	"golang.org/x/net/context"
+	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/delay"
+	"google.golang.org/appengine/log"
+	"reflect"
+	"regexp"
 	"time"
 )
 
@@ -29,7 +29,7 @@ type Entity struct {
 	indexes map[string]*DocumentDefinition
 
 	// listeners
-	OnAfterRead func(h *EntityDataHolder) (error)
+	OnAfterRead func(h *EntityDataHolder) error
 }
 
 type Cache struct {
@@ -195,7 +195,7 @@ func (e *Entity) addField(field *Field) {
 
 /**
 Adds index document definition and subscribes it to data changes
- */
+*/
 func (e *Entity) AddIndex(dd *DocumentDefinition) {
 	e.indexes[dd.Name] = dd
 }

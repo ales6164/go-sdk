@@ -1,9 +1,9 @@
 package sdk
 
 import (
+	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"time"
-	"errors"
 )
 
 func AuthMiddleware(signingKey []byte) *JWTMiddleware {
@@ -25,13 +25,11 @@ type Token struct {
 	Expires int64  `json:"expires"`
 }
 
-
-
 var (
 	ErrIllegalAction = errors.New("illegal action")
 )
 
-func (c *Context) NewUserToken(userKey string, userRoleKey string) (error) {
+func (c *Context) NewUserToken(userKey string, userRoleKey string) error {
 	var err error
 	c.Token, err = newToken(userKey, userRoleKey)
 	return err

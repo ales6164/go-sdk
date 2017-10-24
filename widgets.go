@@ -53,9 +53,18 @@ type SelectWidget struct {
 	List         []string `json:"list"`
 }
 
+type ConnectWidget struct {
+	Widget          `json:"-"`
+	Label    string `json:"label"`
+	Entity   string `json:"entity"`
+	Type     string `json:"type"`     // select
+	ReadOnly bool   `json:"readOnly"` // if false, can also add new entities
+}
+
 // media widget example
 type MediaWidget struct {
 	Widget                      `json:"-"`
+	Label         string        `json:"label"`
 	Multiple      string        `json:"-"`
 	Type          string        `json:"-"`
 	TransformTool TransformTool `json:"-"`
@@ -72,6 +81,14 @@ func (w SelectWidget) WidgetName() string {
 
 func (w InputWidget) WidgetName() string {
 	return "input"
+}
+
+func (w ConnectWidget) WidgetName() string {
+	return "connect"
+}
+
+func (w MediaWidget) WidgetName() string {
+	return "media"
 }
 
 func (w SummerNoteWidget) WidgetName() string {

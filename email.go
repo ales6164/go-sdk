@@ -1,9 +1,9 @@
 package sdk
 
 import (
+	"bytes"
 	"google.golang.org/appengine/mail"
 	"html/template"
-	"bytes"
 )
 
 func (c *Context) SendEmail(message *mail.Message, t *template.Template, data interface{}) error {

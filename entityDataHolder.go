@@ -1,12 +1,12 @@
 package sdk
 
 import (
-	"google.golang.org/appengine/datastore"
-	"fmt"
-	"encoding/json"
-	"strings"
-	"errors"
 	"encoding/gob"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"google.golang.org/appengine/datastore"
+	"strings"
 	"time"
 )
 
