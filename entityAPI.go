@@ -55,6 +55,7 @@ func (e *Entity) handleGetWithFields() func(w http.ResponseWriter, r *http.Reque
 		}
 
 		ctx.Print(w, map[string]interface{}{
+			"entity": e.Name,
 			"fields": fields,
 			"data":   dataHolder.Output(ctx),
 		})
