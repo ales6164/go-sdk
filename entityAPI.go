@@ -169,6 +169,7 @@ func (e *Entity) handleQuery(fieldPosition []string) func(w http.ResponseWriter,
 
 		ctx.Print(w, map[string]interface{}{
 			"fields": fieldPosition,
+			"entity": e.Name,
 			"data":   data,
 			"count":  len(data),
 		})
