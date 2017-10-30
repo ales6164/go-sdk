@@ -26,6 +26,27 @@ type InputWidget struct {
 	List         []string `json:"list"`
 }
 
+type TextAreaWidget struct {
+	Widget                `json:"-"`
+	Label        string   `json:"label"`
+	Type         string   `json:"type"`
+	Title        string   `json:"title"`
+	Value        string   `json:"value"`
+	Disabled     bool     `json:"disabled"`
+	Readonly     bool     `json:"readonly"`
+	Required     bool     `json:"required"`
+	Placeholder  string   `json:"placeholder"`
+	Pattern      string   `json:"pattern"`
+	Step         int      `json:"step"`
+	MinLength    int      `json:"minlength"`
+	MaxLength    int      `json:"maxlength"`
+	Min          int      `json:"min"`
+	Max          int      `json:"max"`
+	Size         int      `json:"size"`
+	Autocomplete bool     `json:"autocomplete"`
+	Autofocus    bool     `json:"autofocus"`
+}
+
 type SummerNoteWidget struct {
 	Widget       `json:"-"`
 	Label string `json:"label"`
@@ -81,6 +102,10 @@ func (w SelectWidget) WidgetName() string {
 
 func (w InputWidget) WidgetName() string {
 	return "input"
+}
+
+func (w TextAreaWidget) WidgetName() string {
+	return "textarea"
 }
 
 func (w ConnectWidget) WidgetName() string {
