@@ -27,10 +27,22 @@ func upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fileMultipart, fileHeader, err := r.FormFile("file")
+	path, err := saveFile(ctx, "file")
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
+	}
+
+	ctx.Print(w, "https://storage.googleapis.com/" + bucketName + "/" + path)
+}
+
+func saveFile(ctx Context, name string) (string, error) {
+	var path string
+	var err error
+
+	fileMultipart, fileHeader, err := ctx.r.FormFile(name)
+	if err != nil {
+		return path, err
 	}
 	defer fileMultipart.Close()
 
@@ -38,24 +50,13 @@ func upload(w http.ResponseWriter, r *http.Request) {
 
 	bytes, err := ioutil.ReadAll(fileMultipart)
 	if err != nil {
-		ctx.PrintError(w, err, http.StatusInternalServerError)
-		return
+		return path, err
 	}
 
-	path, err := writePhoto(ctx.Context, fileKeyName, fileHeader.Filename, bytes)
-	if err != nil {
-		ctx.PrintError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	var out = map[string]string{
-		"filename": fileHeader.Filename,
-		"url":      path,
-	}
-	ctx.Print(w, out)
+	return writeFile(ctx.Context, fileKeyName, fileHeader.Filename, bytes)
 }
 
-func writePhoto(ctx context.Context, key string, name string, bs []byte) (string, error) {
+func writeFile(ctx context.Context, key string, name string, bs []byte) (string, error) {
 	var path string
 	var err error
 

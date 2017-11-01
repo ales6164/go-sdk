@@ -23,6 +23,7 @@ type Field struct {
 	Name       string `json:"name"`
 	NoEdits    bool   `json:"noEdits"` // default true
 	IsRequired bool   `json:"isRequired"`
+	IsFile     bool   `json:"isFile"` // saves multipart file and returns url
 
 	Entity *Entity `json:"-"`      // if set, value should be encoded entity key
 	Lookup bool    `json:"lookup"` // if true it looks up entity value on output

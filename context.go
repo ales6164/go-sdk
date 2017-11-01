@@ -28,8 +28,6 @@ type Context struct {
 
 func NewContext(r *http.Request) Context {
 	isAuthenticated, userRole, userKey, renewedToken, err := getUser(r)
-	body, _ := ioutil.ReadAll(r.Body)
-	r.Body.Close()
 
 	if len(userRole) == 0 {
 		userRole = "guest"
@@ -43,8 +41,13 @@ func NewContext(r *http.Request) Context {
 		User:            userKey,
 		Token:           renewedToken,
 		err:             err,
-		body:            body,
 	}
+}
+
+func (c Context) WithBody() Context {
+	c.body, _ = ioutil.ReadAll(c.r.Body)
+	c.r.Body.Close()
+	return c
 }
 
 // return true if userKey matches with userKey in token

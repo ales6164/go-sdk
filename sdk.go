@@ -40,6 +40,8 @@ func init() {
 	gob.Register(InputWidget{})
 	gob.Register(MediaWidget{})
 	gob.Register(SelectWidget{})
+	gob.Register(ConnectWidget{})
+	gob.Register(SummerNoteWidget{})
 }
 
 func (s *MyServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {

@@ -12,6 +12,8 @@ import (
 	"reflect"
 	"regexp"
 	"time"
+	"github.com/google/uuid"
+	"io/ioutil"
 )
 
 type Entity struct {
@@ -21,6 +23,9 @@ type Entity struct {
 
 	Fields map[string]*Field
 	fields []*Field
+
+	hasFileFields bool
+	parse map[string]func(ctx Context) (interface{}, error)
 
 	preparedData map[*Field]func(ctx Context, f *Field) interface{}
 
@@ -55,6 +60,7 @@ func NewEntity(name string, fields []*Field) *Entity {
 	e.preparedData = map[*Field]func(ctx Context, f *Field) interface{}{}
 
 	e.Fields = map[string]*Field{}
+	e.parse = map[string]func(ctx Context) (interface{}, error){}
 	for _, field := range fields {
 		if len(field.Name) == 0 {
 			panic(errors.New("field name can't be empty"))
@@ -69,6 +75,14 @@ func NewEntity(name string, fields []*Field) *Entity {
 		}
 
 		e.addField(field)
+
+		// todo
+		if field.IsFile {
+			e.parse[field.Name] = func(ctx Context) (interface{}, error) {
+				return saveFile(ctx, field.Name)
+			}
+			e.hasFileFields = true
+		}
 	}
 
 	// add special fields
@@ -287,6 +301,49 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 
 	// todo: fix this
 	c.r.FormValue("a")
+
+	// e.parse only parses form values for now
+	/*for fieldName, fun := range e.parse {
+		val, err := fun(c)
+		if err != nil {
+			return h, err
+		}
+		err = h.appendValue(fieldName, val, Low)
+		if err != nil {
+			return h, err
+		}
+	}*/
+
+	if e.hasFileFields {
+		c.r.ParseMultipartForm(32 << 20)
+		m:= c.r.MultipartForm
+		for name, v := range m.File {
+			if _, ok := e.parse[name]; ok {
+				for _, f := range v {
+					file, err := f.Open()
+					if err != nil {
+						return h, err
+					}
+
+					fileKeyName := uuid.New().String()
+					bytes, err := ioutil.ReadAll(file)
+					file.Close()
+					if err != nil {
+						return h, err
+					}
+					url, err := writeFile(c.Context, fileKeyName, f.Filename, bytes)
+					if err != nil {
+						return h, err
+					}
+
+					err = h.appendValue(name, "https://storage.googleapis.com/" + bucketName + "/" + url, Low)
+					if err != nil {
+						return h, err
+					}
+				}
+			}
+		}
+	}
 
 	err := c.r.ParseForm()
 	if len(c.r.Form) != 0 {
