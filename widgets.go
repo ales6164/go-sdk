@@ -27,24 +27,24 @@ type InputWidget struct {
 }
 
 type TextAreaWidget struct {
-	Widget                `json:"-"`
-	Label        string   `json:"label"`
-	Type         string   `json:"type"`
-	Title        string   `json:"title"`
-	Value        string   `json:"value"`
-	Disabled     bool     `json:"disabled"`
-	Readonly     bool     `json:"readonly"`
-	Required     bool     `json:"required"`
-	Placeholder  string   `json:"placeholder"`
-	Pattern      string   `json:"pattern"`
-	Step         int      `json:"step"`
-	MinLength    int      `json:"minlength"`
-	MaxLength    int      `json:"maxlength"`
-	Min          int      `json:"min"`
-	Max          int      `json:"max"`
-	Size         int      `json:"size"`
-	Autocomplete bool     `json:"autocomplete"`
-	Autofocus    bool     `json:"autofocus"`
+	Widget              `json:"-"`
+	Label        string `json:"label"`
+	Type         string `json:"type"`
+	Title        string `json:"title"`
+	Value        string `json:"value"`
+	Disabled     bool   `json:"disabled"`
+	Readonly     bool   `json:"readonly"`
+	Required     bool   `json:"required"`
+	Placeholder  string `json:"placeholder"`
+	Pattern      string `json:"pattern"`
+	Step         int    `json:"step"`
+	MinLength    int    `json:"minlength"`
+	MaxLength    int    `json:"maxlength"`
+	Min          int    `json:"min"`
+	Max          int    `json:"max"`
+	Size         int    `json:"size"`
+	Autocomplete bool   `json:"autocomplete"`
+	Autofocus    bool   `json:"autofocus"`
 }
 
 type SummerNoteWidget struct {
@@ -75,11 +75,12 @@ type SelectWidget struct {
 }
 
 type ConnectWidget struct {
-	Widget          `json:"-"`
-	Label    string `json:"label"`
-	Entity   string `json:"entity"`
-	Type     string `json:"type"`     // select
-	ReadOnly bool   `json:"readOnly"` // if false, can also add new entities
+	Widget                          `json:"-"`
+	Label    string                 `json:"label"`
+	Entity   string                 `json:"entity"`
+	Meta     map[string]interface{} `json:"meta"`
+	Type     string                 `json:"type"`     // select
+	ReadOnly bool                   `json:"readOnly"` // if false, can also add new entities
 }
 
 // media widget example

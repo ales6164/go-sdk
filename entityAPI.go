@@ -25,6 +25,20 @@ func (a *SDK) EnableEntityAPI(e *Entity, fieldPosition []string) {
 	enabledAPIs = append(enabledAPIs, API{e.Name, fieldPosition})
 }
 
+func getFields(e *Entity) []map[string]interface{} {
+	var fields []map[string]interface{}
+	for _, field := range e.fields {
+		if len(field.Widget.WidgetName()) != 0 {
+			var widget = map[string]interface{}{}
+			widget["type"] = field.Widget.WidgetName()
+			widget["field"] = field.Name
+			widget["options"] = field.Widget
+			fields = append(fields, widget)
+		}
+	}
+	return fields
+}
+
 func (e *Entity) handleGetWithFields() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r).WithScopes(ScopeRead)
@@ -43,20 +57,9 @@ func (e *Entity) handleGetWithFields() func(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		var fields []map[string]interface{}
-		for _, field := range e.fields {
-			if len(field.Widget.WidgetName()) != 0 {
-				var widget = map[string]interface{}{}
-				widget["type"] = field.Widget.WidgetName()
-				widget["field"] = field.Name
-				widget["options"] = field.Widget
-				fields = append(fields, widget)
-			}
-		}
-
 		ctx.Print(w, map[string]interface{}{
 			"entity": e.Name,
-			"fields": fields,
+			"fields": getFields(e),
 			"data":   dataHolder.Output(ctx),
 		})
 	}
@@ -66,19 +69,8 @@ func (e *Entity) handleGetFields() func(w http.ResponseWriter, r *http.Request) 
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r)
 
-		var fields []map[string]interface{}
-		for _, field := range e.fields {
-			if len(field.Widget.WidgetName()) != 0 {
-				var widget = map[string]interface{}{}
-				widget["type"] = field.Widget.WidgetName()
-				widget["field"] = field.Name
-				widget["options"] = field.Widget
-				fields = append(fields, widget)
-			}
-		}
-
 		ctx.Print(w, map[string]interface{}{
-			"fields": fields,
+			"fields": getFields(e),
 			"data":   e.New(ctx).Output(ctx),
 		})
 	}
