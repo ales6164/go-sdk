@@ -226,8 +226,10 @@ func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 	if ctx.HasScope(e.Name, ScopeEdit) {
 		if !key.Incomplete() {
 			err = datastore.RunInTransaction(ctx.Context, func(tc context.Context) error {
-				var tempEnt datastore.PropertyList
-				err := datastore.Get(tc, key, &tempEnt)
+
+				h.keepExistingValue = true // important!
+
+				err := datastore.Get(tc, key, h)
 				if err != nil {
 					return err
 				}
@@ -236,6 +238,7 @@ func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 						return ErrNotAuthorized
 					}
 				}
+				h.keepExistingValue = false
 
 				key, err = datastore.Put(tc, key, h)
 				if err != nil {

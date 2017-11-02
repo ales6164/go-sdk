@@ -19,8 +19,8 @@ func (a *SDK) EnableEntityAPI(e *Entity, fieldPosition []string) {
 	a.HandleFunc("/"+e.Name+"/{encodedKey}/fields", e.handleGetWithFields()).Methods(http.MethodGet)
 	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handleGet(fieldPosition)).Methods(http.MethodGet)
 	a.HandleFunc("/"+e.Name, e.handleQuery(fieldPosition)).Methods(http.MethodGet)
-	a.HandleFunc("/"+e.Name, e.handlePost()).Methods(http.MethodPost)
-	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handlePost()).Methods(http.MethodPost)
+	a.HandleFunc("/"+e.Name, e.handleAdd()).Methods(http.MethodPost)
+	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handleEdit()).Methods(http.MethodPost)
 
 	enabledAPIs = append(enabledAPIs, API{e.Name, fieldPosition})
 }
@@ -28,7 +28,7 @@ func (a *SDK) EnableEntityAPI(e *Entity, fieldPosition []string) {
 func getFields(e *Entity) []map[string]interface{} {
 	var fields []map[string]interface{}
 	for _, field := range e.fields {
-		if len(field.Widget.WidgetName()) != 0 {
+		if field.Widget != nil && len(field.Widget.WidgetName()) != 0 {
 			var widget = map[string]interface{}{}
 			widget["type"] = field.Widget.WidgetName()
 			widget["field"] = field.Name
@@ -41,7 +41,7 @@ func getFields(e *Entity) []map[string]interface{} {
 
 func (e *Entity) handleGetWithFields() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithScopes(ScopeRead)
+		ctx := NewContext(r).WithBody().WithScopes(ScopeRead)
 		vars := mux.Vars(r)
 		encodedKey := vars["encodedKey"]
 
@@ -67,7 +67,7 @@ func (e *Entity) handleGetWithFields() func(w http.ResponseWriter, r *http.Reque
 
 func (e *Entity) handleGetFields() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r)
+		ctx := NewContext(r).WithBody()
 
 		ctx.Print(w, map[string]interface{}{
 			"fields": getFields(e),
@@ -78,7 +78,7 @@ func (e *Entity) handleGetFields() func(w http.ResponseWriter, r *http.Request) 
 
 func (e *Entity) handleGet(fieldPosition []string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r)
+		ctx := NewContext(r).WithBody()
 		vars := mux.Vars(r)
 
 		encodedKey := vars["encodedKey"]
@@ -102,7 +102,30 @@ func (e *Entity) handleGet(fieldPosition []string) func(w http.ResponseWriter, r
 	}
 }
 
-func (e *Entity) handlePost() func(w http.ResponseWriter, r *http.Request) {
+func (e *Entity) handleAdd() func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := NewContext(r).WithScopes(ScopeEdit, ScopeWrite, ScopeAdd)
+
+		holder, err := e.FromForm(ctx)
+		if err != nil {
+			ctx.PrintError(w, err, http.StatusInternalServerError)
+			return
+		}
+
+		var key *datastore.Key
+		ctx, key = e.NewIncompleteKey(ctx)
+
+		key, err = e.Add(ctx, key, holder)
+		if err != nil {
+			ctx.PrintError(w, err, http.StatusInternalServerError)
+			return
+		}
+
+		ctx.Print(w, holder.Output(ctx))
+	}
+}
+
+func (e *Entity) handleEdit() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r).WithScopes(ScopeEdit, ScopeWrite, ScopeAdd)
 		vars := mux.Vars(r)
@@ -125,7 +148,7 @@ func (e *Entity) handlePost() func(w http.ResponseWriter, r *http.Request) {
 			ctx, key = e.NewIncompleteKey(ctx)
 		}
 
-		key, err = e.Post(ctx, key, holder)
+		key, err = e.Edit(ctx, key, holder)
 		if err != nil {
 			ctx.PrintError(w, err, http.StatusInternalServerError)
 			return
@@ -137,7 +160,7 @@ func (e *Entity) handlePost() func(w http.ResponseWriter, r *http.Request) {
 
 func (e *Entity) handleQuery(fieldPosition []string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithScopes(ScopeRead)
+		ctx := NewContext(r).WithBody().WithScopes(ScopeRead)
 
 		q := r.URL.Query()
 

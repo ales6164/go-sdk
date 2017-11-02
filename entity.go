@@ -316,7 +316,7 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 
 	if e.hasFileFields {
 		c.r.ParseMultipartForm(32 << 20)
-		m:= c.r.MultipartForm
+		m := c.r.MultipartForm
 		for name, v := range m.File {
 			if _, ok := e.parse[name]; ok {
 				for _, f := range v {
@@ -336,7 +336,9 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 						return h, err
 					}
 
-					err = h.appendValue(name, "https://storage.googleapis.com/" + bucketName + "/" + url, Low)
+					/*log.Infof(c.Context, "Appending file url '%s' value: %s", name, url)*/
+
+					err = h.appendValue(name, "https://storage.googleapis.com/"+bucketName+"/"+url, Low)
 					if err != nil {
 						return h, err
 					}
@@ -354,6 +356,8 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 			}
 
 			for _, v := range values {
+				/*log.Infof(c.Context, "Appending '%s' value: %v", name, v)*/
+
 				err = h.appendValue(name, v, Low)
 				if err != nil {
 					return h, err
@@ -384,12 +388,14 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 func (e *Entity) FromBody(c Context) (*EntityDataHolder, error) {
 	var err error
 
-	if len(c.body) == 0 {
+	c = c.WithBody()
+
+	if len(c.body.body) == 0 {
 		return e.New(c), nil
 	}
 
 	var t map[string]interface{}
-	err = json.Unmarshal(c.body, &t)
+	err = json.Unmarshal(c.body.body, &t)
 	if err != nil {
 		return e.New(c), err
 	}

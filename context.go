@@ -23,7 +23,12 @@ type Context struct {
 	IsAuthenticated bool
 	Token           Token
 
-	body []byte
+	body *Body
+}
+
+type Body struct {
+	hasReadBody bool
+	body        []byte
 }
 
 func NewContext(r *http.Request) Context {
@@ -41,12 +46,16 @@ func NewContext(r *http.Request) Context {
 		User:            userKey,
 		Token:           renewedToken,
 		err:             err,
+		body:            &Body{hasReadBody: false},
 	}
 }
 
 func (c Context) WithBody() Context {
-	c.body, _ = ioutil.ReadAll(c.r.Body)
-	c.r.Body.Close()
+	if !c.body.hasReadBody {
+		c.body.body, _ = ioutil.ReadAll(c.r.Body)
+		c.r.Body.Close()
+		c.body.hasReadBody = true
+	}
 	return c
 }
 
@@ -81,7 +90,7 @@ func getUser(r *http.Request) (bool, string, string, Token, error) {
 				return isAuthenticated, userRoleKey, userKey, renewedToken, ErrIllegalAction
 			} else if exp, ok := claims["exp"].(float64); ok {
 				// check if it's less than a week old
-				if time.Now().Unix()-int64(exp) < time.Now().Add(time.Hour*24*7).Unix() {
+				if time.Now().Unix()-int64(exp) < time.Now().Add(time.Hour * 24 * 7).Unix() {
 					if userKey, ok := claims["sub"].(string); ok {
 						if userRoleKey, ok := claims["role"].(string); ok {
 							renewedToken, err = newToken(userKey, userRoleKey)

@@ -178,6 +178,15 @@ func (e *EntityDataHolder) appendValue(name string, value interface{}, trust Val
 	e.input[name] = value
 
 	if field, ok := e.Entity.Fields[name]; ok {
+
+		// to keep it from deleting value
+		// todo
+		if field.IsFile && field.IsRequired {
+			if fileUrl, ok := value.(string); !ok || len(fileUrl) == 0 {
+				return nil
+			}
+		}
+
 		var c = &ValueContext{Field: field, Trust: trust}
 		return e.appendFieldValue(field, value, c)
 	}
