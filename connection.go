@@ -39,7 +39,7 @@ func (e *Entity) Query(ctx Context, sort string, limit int, filters ...EntityQue
 
 		t := q.Run(ctx.Context)
 		for {
-			var h *EntityDataHolder = e.New(ctx)
+			var h = e.New(ctx)
 			h.isNew = false
 			key, err := t.Next(h)
 			if err == datastore.Done {
@@ -57,7 +57,7 @@ func (e *Entity) Query(ctx Context, sort string, limit int, filters ...EntityQue
 			}
 
 			if e.OnAfterRead != nil {
-				err = e.OnAfterRead(h)
+				err = e.OnAfterRead(ctx, h)
 			}
 			hs = append(hs, h)
 		}
@@ -84,7 +84,7 @@ func (e *Entity) Get(ctx Context, key *datastore.Key) (*EntityDataHolder, error)
 			}
 		}
 		if e.OnAfterRead != nil {
-			err = e.OnAfterRead(h)
+			err = e.OnAfterRead(ctx, h)
 		}
 		return h, err
 	}
@@ -107,6 +107,9 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 						encoded := key.Encode()
 						h.id = encoded
 						e.PutToIndexes(tc, encoded, h)
+						if e.OnAfterWrite != nil {
+							err = e.OnAfterWrite(ctx, h)
+						}
 						return err
 					}
 					return err
@@ -124,6 +127,9 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 			encoded := key.Encode()
 			h.id = encoded
 			e.PutToIndexes(ctx.Context, encoded, h)
+			if e.OnAfterWrite != nil {
+				err = e.OnAfterWrite(ctx, h)
+			}
 		}
 		return key, err
 	}
@@ -144,6 +150,9 @@ func (e *Entity) Put(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 			}
 		}
 		e.PutToIndexes(ctx.Context, encoded, h)
+		if e.OnAfterWrite != nil {
+			err = e.OnAfterWrite(ctx, h)
+		}
 		return key, err
 	}
 	return key, ErrNotAuthorized
@@ -170,7 +179,9 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 				}
 			}
 			e.PutToIndexes(ctx.Context, encoded, h)
-
+			if e.OnAfterWrite != nil {
+				err = e.OnAfterWrite(ctx, h)
+			}
 			return key, err
 		}
 	} else if ctx.HasScope(e.Name, ScopeEdit) || ctx.HasScope(e.Name, ScopeWrite) {
@@ -196,7 +207,9 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 					encoded := key.Encode()
 					h.id = encoded
 					e.PutToIndexes(ctx.Context, encoded, h)
-
+					if e.OnAfterWrite != nil {
+						err = e.OnAfterWrite(ctx, h)
+					}
 					return err
 				}
 				return err
@@ -210,7 +223,9 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 			encoded := key.Encode()
 			h.id = encoded
 			e.PutToIndexes(ctx.Context, encoded, h)
-
+			if e.OnAfterWrite != nil {
+				err = e.OnAfterWrite(ctx, h)
+			}
 			return err
 		}, nil)
 
@@ -246,6 +261,9 @@ func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 				}
 				encoded := key.Encode()
 				h.id = encoded
+				if e.OnAfterWrite != nil {
+					err = e.OnAfterWrite(ctx, h)
+				}
 				return err
 			}, nil)
 		} else {

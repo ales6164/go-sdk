@@ -34,7 +34,8 @@ type Entity struct {
 	indexes map[string]*DocumentDefinition
 
 	// listeners
-	OnAfterRead func(h *EntityDataHolder) error
+	OnAfterRead  func(c Context, h *EntityDataHolder) error
+	OnAfterWrite func(c Context, h *EntityDataHolder) error
 }
 
 type Cache struct {
