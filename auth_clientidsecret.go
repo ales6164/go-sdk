@@ -6,42 +6,39 @@ import (
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/mail"
 	"net/http"
-	"time"
 )
 
-var clientIdSecret = NewEntity("_client", []*Field{
-	{
-		Name:    "created",
-		NoEdits: true,
-		ValueFunc: func() interface{} {
-			return time.Now()
+var clientIdSecret = &Entity{
+	Name: "_client",
+	Fields: []*Field{
+		{
+			Name:       "service",
+			NoEdits:    true,
+			NoIndex:    true,
+			IsRequired: true,
+			Validator: func(value interface{}) bool {
+				return govalidator.IsByteLength(value.(string), 6, 128)
+			},
+		},
+		{
+			Name:       "secret",
+			NoEdits:    true,
+			IsRequired: true,
+			NoIndex:    true,
+			Validator: func(value interface{}) bool {
+				return govalidator.IsByteLength(value.(string), 32, 128)
+			},
 		},
 	},
-	{
-		Name:       "service",
-		NoEdits:    true,
-		NoIndex:    true,
-		IsRequired: true,
-		Validator: func(value interface{}) bool {
-			return govalidator.IsByteLength(value.(string), 6, 128)
-		},
-	},
-	{
-		Name:       "secret",
-		NoEdits:    true,
-		IsRequired: true,
-		NoIndex:    true,
-		Validator: func(value interface{}) bool {
-			return govalidator.IsByteLength(value.(string), 32, 128)
-		},
-	},
-})
+}
+
+var emptyEntity = &Entity{}
 
 func NewClientRequest(a *SDK) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r).WithScopes(ScopeRead, ScopeAdd)
 
-		formHolder, _ := DefaultDataHolder.FromForm(ctx)
+		formHolder, _ := emptyEntity.FromForm(ctx)
 
 		email := formHolder.GetInput("email")
 		signature := formHolder.GetInput("signature")
@@ -93,15 +90,11 @@ func NewClientRequest(a *SDK) func(w http.ResponseWriter, r *http.Request) {
 func IssueClientToken(w http.ResponseWriter, r *http.Request) {
 	ctx := NewContext(r).WithScopes(ScopeRead, ScopeEdit)
 
-	/*clientID, clientSecret := r.FormValue("clientID"), r.FormValue("clientSecret")*/
-	formHolder, err := DefaultDataHolder.FromForm(ctx)
+	formHolder, err := emptyEntity.FromForm(ctx)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusBadRequest)
 		return
 	}
-
-	/*ctx.Print(w, formHolder.input)
-	return*/
 
 	ctx, key, err := clientIdSecret.DecodeKey(ctx, formHolder.GetInput("clientID").(string))
 	if err != nil {
@@ -120,7 +113,7 @@ func IssueClientToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = ctx.NewUserToken(holder.id, "client")
+	err = ctx.NewUserToken(holder.id, APIClientRole)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusUnauthorized)
 		return

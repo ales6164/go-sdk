@@ -7,22 +7,18 @@ import (
 	"strconv"
 )
 
-var enabledAPIs []API
+var enabledEntityAPIs []*Entity
 
-type API struct {
-	Name   string   `json:"name"`
-	Fields []string `json:"fields"`
-}
 
-func (a *SDK) EnableEntityAPI(e *Entity, fieldPosition []string) {
+func (a *SDK) enableEntityAPI(e *Entity) {
 	a.HandleFunc("/"+e.Name+"/fields", e.handleGetFields()).Methods(http.MethodGet)
 	a.HandleFunc("/"+e.Name+"/{encodedKey}/fields", e.handleGetWithFields()).Methods(http.MethodGet)
-	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handleGet(fieldPosition)).Methods(http.MethodGet)
-	a.HandleFunc("/"+e.Name, e.handleQuery(fieldPosition)).Methods(http.MethodGet)
+	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handleGet()).Methods(http.MethodGet)
+	a.HandleFunc("/"+e.Name, e.handleQuery()).Methods(http.MethodGet)
 	a.HandleFunc("/"+e.Name, e.handleAdd()).Methods(http.MethodPost)
 	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handleEdit()).Methods(http.MethodPost)
 
-	enabledAPIs = append(enabledAPIs, API{e.Name, fieldPosition})
+	enabledEntityAPIs = append(enabledEntityAPIs, e)
 }
 
 func getFields(e *Entity) []map[string]interface{} {
@@ -41,7 +37,7 @@ func getFields(e *Entity) []map[string]interface{} {
 
 func (e *Entity) handleGetWithFields() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithBody().WithScopes(ScopeRead)
+		ctx := NewContext(r).WithBody()
 		vars := mux.Vars(r)
 		encodedKey := vars["encodedKey"]
 
@@ -76,7 +72,7 @@ func (e *Entity) handleGetFields() func(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (e *Entity) handleGet(fieldPosition []string) func(w http.ResponseWriter, r *http.Request) {
+func (e *Entity) handleGet() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r).WithBody()
 		vars := mux.Vars(r)
@@ -96,7 +92,7 @@ func (e *Entity) handleGet(fieldPosition []string) func(w http.ResponseWriter, r
 		}
 
 		ctx.Print(w, map[string]interface{}{
-			"fields": fieldPosition,
+			"fields": e.AdminFields,
 			"data":   dataHolder.Output(ctx),
 		})
 	}
@@ -104,7 +100,7 @@ func (e *Entity) handleGet(fieldPosition []string) func(w http.ResponseWriter, r
 
 func (e *Entity) handleAdd() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithScopes(ScopeEdit, ScopeWrite, ScopeAdd)
+		ctx := NewContext(r)
 
 		holder, err := e.FromForm(ctx)
 		if err != nil {
@@ -127,7 +123,7 @@ func (e *Entity) handleAdd() func(w http.ResponseWriter, r *http.Request) {
 
 func (e *Entity) handleEdit() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithScopes(ScopeEdit, ScopeWrite, ScopeAdd)
+		ctx := NewContext(r)
 		vars := mux.Vars(r)
 		encodedKey := vars["encodedKey"]
 
@@ -158,9 +154,9 @@ func (e *Entity) handleEdit() func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (e *Entity) handleQuery(fieldPosition []string) func(w http.ResponseWriter, r *http.Request) {
+func (e *Entity) handleQuery() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithBody().WithScopes(ScopeRead)
+		ctx := NewContext(r).WithBody()
 
 		q := r.URL.Query()
 
@@ -183,7 +179,7 @@ func (e *Entity) handleQuery(fieldPosition []string) func(w http.ResponseWriter,
 		}
 
 		ctx.Print(w, map[string]interface{}{
-			"fields": fieldPosition,
+			"fields": e.AdminFields,
 			"entity": e.Name,
 			"data":   data,
 			"count":  len(data),

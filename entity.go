@@ -17,12 +17,15 @@ import (
 )
 
 type Entity struct {
-	Name    string
-	Private bool  // protects entity with user field - only creator has access
-	Cache   Cache // keeps values in memcache - good for categories, translations, ...
+	Name    string // Only a-Z characters allowed
+	Private bool   // Protects entity with user field - only creator has access
+	Cache   Cache  // Keeps values in memcache - good for categories, translations, ...
 
-	Fields map[string]*Field
-	fields []*Field
+	fields map[string]*Field
+	Fields []*Field
+
+	// Admin configuration
+	AdminFields []string
 
 	hasFileFields bool
 	parse map[string]func(ctx Context) (interface{}, error)
@@ -33,9 +36,13 @@ type Entity struct {
 
 	indexes map[string]*DocumentDefinition
 
-	// listeners
-	OnAfterRead  func(c Context, h *EntityDataHolder) error
-	OnAfterWrite func(c Context, h *EntityDataHolder) error
+	// Rules
+	Rules map[Role]map[Scope]bool
+
+	// Listener
+	OnBeforeWrite func(c Context, h *EntityDataHolder) error
+	OnAfterRead   func(c Context, h *EntityDataHolder) error
+	OnAfterWrite  func(c Context, h *EntityDataHolder) error
 }
 
 type Cache struct {
@@ -43,26 +50,11 @@ type Cache struct {
 	Expiration   time.Duration // value expiration date. Zero means no expiration
 }
 
-func NewEntity(name string, fields []*Field) *Entity {
-	var e = new(Entity)
-
-	if len(name) == 0 {
-		panic(errors.New("entity name can't be empty"))
-	}
-
-	if name == "default" || name == "any" || name == "all" {
-		panic(errors.New("entity name '" + name + "' is reserved and can't be used"))
-	}
-
-	e.Name = name
-	e.fields = fields
-	e.indexes = map[string]*DocumentDefinition{}
-
+func (e *Entity) init() (*Entity, error) {
 	e.preparedData = map[*Field]func(ctx Context, f *Field) interface{}{}
-
-	e.Fields = map[string]*Field{}
 	e.parse = map[string]func(ctx Context) (interface{}, error){}
-	for _, field := range fields {
+
+	for _, field := range e.Fields {
 		if len(field.Name) == 0 {
 			panic(errors.New("field name can't be empty"))
 		}
@@ -75,7 +67,7 @@ func NewEntity(name string, fields []*Field) *Entity {
 			panic(errors.New("field name can't start with an underscore"))
 		}
 
-		e.addField(field)
+		e.AddField(field)
 
 		// todo
 		if field.IsFile {
@@ -87,7 +79,7 @@ func NewEntity(name string, fields []*Field) *Entity {
 	}
 
 	// add special fields
-	e.addField(&Field{
+	e.AddField(&Field{
 		Name:           "_createdAt",
 		NoEdits:        true,
 		NoIndex:        true,
@@ -96,17 +88,23 @@ func NewEntity(name string, fields []*Field) *Entity {
 			return time.Now()
 		},
 	})
-	e.addField(&Field{
+	e.AddField(&Field{
 		Name:           "_createdBy",
 		NoEdits:        true,
 		NoIndex:        true,
 		isSpecialField: true,
 		Entity:         userEntity,
 		ContextFunc: func(ctx Context) interface{} {
-			return ctx.User
+			if len(ctx.User) > 0 {
+				if key, err := datastore.DecodeKey(ctx.User); err == nil {
+					return key
+				}
+				return nil
+			}
+			return nil
 		},
 	})
-	e.addField(&Field{
+	e.AddField(&Field{
 		Name:           "_updatedAt",
 		NoIndex:        true,
 		isSpecialField: true,
@@ -114,20 +112,55 @@ func NewEntity(name string, fields []*Field) *Entity {
 			return time.Now()
 		},
 	})
-	e.addField(&Field{
+	e.AddField(&Field{
 		Name:           "_updatedBy",
 		NoIndex:        true,
 		isSpecialField: true,
 		Entity:         userEntity,
 		ContextFunc: func(ctx Context) interface{} {
-			return ctx.User
+			if len(ctx.User) > 0 {
+				if key, err := datastore.DecodeKey(ctx.User); err == nil {
+					return key
+				}
+				return nil
+			}
+			return nil
 		},
 	})
 
-	return e
+	return e, nil
 }
 
-func (e *Entity) addField(field *Field) {
+func (a *SDK) EnableEntity(e *Entity, guestScopes ...Scope) (*Entity, error) {
+	if len(e.Name) == 0 {
+		return e, errors.New("entity name can't be empty")
+	}
+	if !govalidator.IsAlpha(e.Name) {
+		return e, errors.New("entity name can only be a-Z characters")
+	}
+	if e.Name == "default" || e.Name == "any" || e.Name == "all" {
+		return e, errors.New("entity name '" + e.Name + "' is reserved and can't be used")
+	}
+
+	e, err := e.init()
+	if err != nil {
+		return e, err
+	}
+
+	e.SetRule(AdminRole, ScopeOwn)
+	e.SetRule(APIClientRole, ScopeOwn)
+
+	if len(guestScopes) > 0 {
+		e.SetRule(GuestRole, guestScopes...)
+		e.SetRule(SubscriberRole, guestScopes...)
+	}
+
+	a.enableEntityAPI(e)
+
+	return e, nil
+}
+
+func (e *Entity) AddField(field *Field) {
 	if len(field.GroupName) != 0 {
 		if !govalidator.IsAlpha(field.GroupName) {
 			panic(errors.New("field group name contains non-alpha characters"))
@@ -137,7 +170,11 @@ func (e *Entity) addField(field *Field) {
 		field.datastoreFieldName = field.Name
 	}
 
-	e.Fields[field.datastoreFieldName] = field
+	if e.fields == nil {
+		e.fields = map[string]*Field{}
+	}
+
+	e.fields[field.datastoreFieldName] = field
 
 	if field.IsRequired {
 		e.requiredFields = append(e.requiredFields, field)
@@ -212,6 +249,9 @@ func (e *Entity) addField(field *Field) {
 Adds index document definition and subscribes it to data changes
 */
 func (e *Entity) AddIndex(dd *DocumentDefinition) {
+	if e.indexes == nil {
+		e.indexes = map[string]*DocumentDefinition{}
+	}
 	e.indexes[dd.Name] = dd
 }
 

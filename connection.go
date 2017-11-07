@@ -22,7 +22,7 @@ type EntityQueryFilter struct {
 func (e *Entity) Query(ctx Context, sort string, limit int, filters ...EntityQueryFilter) ([]*EntityDataHolder, error) {
 	var hs []*EntityDataHolder
 
-	if ctx.HasScope(e.Name, ScopeRead) {
+	if ctx.HasScope(e, ScopeRead) {
 		q := datastore.NewQuery(e.Name)
 
 		for _, filter := range filters {
@@ -69,9 +69,9 @@ func (e *Entity) Query(ctx Context, sort string, limit int, filters ...EntityQue
 }
 
 func (e *Entity) Get(ctx Context, key *datastore.Key) (*EntityDataHolder, error) {
-	var h *EntityDataHolder = e.New(ctx)
+	var h = e.New(ctx)
 	h.isNew = false
-	if ctx.HasScope(e.Name, ScopeRead) {
+	if ctx.HasScope(e, ScopeRead) {
 		err := datastore.Get(ctx.Context, key, h)
 		if err != nil {
 			return h, err
@@ -93,13 +93,18 @@ func (e *Entity) Get(ctx Context, key *datastore.Key) (*EntityDataHolder, error)
 
 func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
 	var err error
-	if ctx.HasScope(e.Name, ScopeAdd) {
+	if ctx.HasScope(e, ScopeAdd) {
 		if !key.Incomplete() {
 			err = datastore.RunInTransaction(ctx.Context, func(tc context.Context) error {
 				var tempEnt datastore.PropertyList
 				err := datastore.Get(tc, key, &tempEnt)
 				if err != nil {
 					if err == datastore.ErrNoSuchEntity {
+						if e.OnBeforeWrite != nil {
+							if err = e.OnBeforeWrite(ctx, h); err != nil {
+								return err
+							}
+						}
 						key, err = datastore.Put(tc, key, h)
 						if err != nil {
 							return err
@@ -120,6 +125,11 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 			}, nil)
 
 		} else {
+			if e.OnBeforeWrite != nil {
+				if err = e.OnBeforeWrite(ctx, h); err != nil {
+					return key, err
+				}
+			}
 			key, err = datastore.Put(ctx.Context, key, h)
 			if err != nil {
 				return key, err
@@ -137,7 +147,12 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 }
 
 func (e *Entity) Put(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
-	if ctx.HasScope(e.Name, ScopeWrite) {
+	if ctx.HasScope(e, ScopeWrite) {
+		if e.OnBeforeWrite != nil {
+			if err := e.OnBeforeWrite(ctx, h); err != nil {
+				return key, err
+			}
+		}
 		key, err := datastore.Put(ctx.Context, key, h)
 		if err != nil {
 			return key, err
@@ -164,9 +179,13 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 	var err error
 
 	if key.Incomplete() {
-		if ctx.HasScope(e.Name, ScopeAdd) {
+		if ctx.HasScope(e, ScopeAdd) {
 			// add entity
-
+			if e.OnBeforeWrite != nil {
+				if err = e.OnBeforeWrite(ctx, h); err != nil {
+					return key, err
+				}
+			}
 			key, err = datastore.Put(ctx.Context, key, h)
 			if err != nil {
 				return key, err
@@ -184,7 +203,7 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 			}
 			return key, err
 		}
-	} else if ctx.HasScope(e.Name, ScopeEdit) || ctx.HasScope(e.Name, ScopeWrite) {
+	} else if ctx.HasScope(e, ScopeEdit) || ctx.HasScope(e, ScopeWrite) {
 		// edit or rewrite entity
 		err = datastore.RunInTransaction(ctx.Context, func(tc context.Context) error {
 
@@ -199,7 +218,11 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 			} else {
 				if err == datastore.ErrNoSuchEntity {
 					// Add entity
-
+					if e.OnBeforeWrite != nil {
+						if err = e.OnBeforeWrite(ctx, h); err != nil {
+							return err
+						}
+					}
 					key, err = datastore.Put(ctx.Context, key, h)
 					if err != nil {
 						return err
@@ -216,6 +239,11 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 			}
 			h.keepExistingValue = false
 
+			if e.OnBeforeWrite != nil {
+				if err = e.OnBeforeWrite(ctx, h); err != nil {
+					return err
+				}
+			}
 			key, err = datastore.Put(ctx.Context, key, h)
 			if err != nil {
 				return err
@@ -238,7 +266,7 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 // currently it only check if entity exists and rewrites it
 func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
 	var err error
-	if ctx.HasScope(e.Name, ScopeEdit) {
+	if ctx.HasScope(e, ScopeEdit) {
 		if !key.Incomplete() {
 			err = datastore.RunInTransaction(ctx.Context, func(tc context.Context) error {
 
@@ -255,6 +283,11 @@ func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 				}
 				h.keepExistingValue = false
 
+				if e.OnBeforeWrite != nil {
+					if err = e.OnBeforeWrite(ctx, h); err != nil {
+						return err
+					}
+				}
 				key, err = datastore.Put(tc, key, h)
 				if err != nil {
 					return err

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"time"
+	"net/http"
 )
 
 func AuthMiddleware(signingKey []byte) *JWTMiddleware {
@@ -29,16 +30,16 @@ var (
 	ErrIllegalAction = errors.New("illegal action")
 )
 
-func (c *Context) NewUserToken(userKey string, userRoleKey string) error {
+func (c *Context) NewUserToken(userKey string, userRole Role) error {
 	var err error
-	c.Token, err = newToken(userKey, userRoleKey)
+	c.Token, err = newToken(userKey, userRole)
 	return err
 }
 
-func newToken(userKey string, userRoleKey string) (Token, error) {
+func newToken(userKey string, userRole Role) (Token, error) {
 	var tkn Token
 
-	if len(userKey) == 0 || len(userRoleKey) == 0 {
+	if len(userKey) == 0 || len(userRole) == 0 {
 		return tkn, ErrIllegalAction
 	}
 
@@ -50,7 +51,7 @@ func newToken(userKey string, userRoleKey string) (Token, error) {
 		"iat":  time.Now().Unix(),
 		"iss":  "sdk",
 		"sub":  userKey,
-		"role": userRoleKey,
+		"role": userRole,
 	})
 
 	signed, err := token.SignedString(signingKey)
@@ -61,7 +62,7 @@ func newToken(userKey string, userRoleKey string) (Token, error) {
 	return Token{signed, exp}, nil
 }
 
-/*
+// Deprecated
 func (c *Context) NewAnonymousToken() (error) {
 	var exp = time.Now().Add(time.Hour * 12).Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -81,6 +82,7 @@ func (c *Context) NewAnonymousToken() (error) {
 	return nil
 }
 
+// Deprecated
 func (a *SDK) AnonTokenHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r)
@@ -91,4 +93,3 @@ func (a *SDK) AnonTokenHandler() http.Handler {
 		}
 	})
 }
-*/

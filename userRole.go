@@ -1,30 +1,28 @@
 package sdk
 
-type Role map[string]map[Scope]bool
+//type role map[Role]map[Scope]bool
 
-var userRoles = map[string]Role{}
+//var userRoles = map[string]role{}
 
-func init() {
-	SetUserRole("admin", "all", ScopeOwn)
-	SetUserRole("client", "all", ScopeOwn)
-}
+type Role string
 
-func (c Context) HasScope(groupName string, scope Scope) bool {
+const (
+	GuestRole      Role = "guest" // Public access
+	AdminRole      Role = "admin"
+	APIClientRole  Role = "api_client"
+	SubscriberRole Role = "subscriber" // Default user role
+)
+
+func (c Context) HasScope(e *Entity, scope Scope) bool {
 	if c.scopes != nil {
 		if s, ok := c.scopes[scope]; ok {
 			return s
 		}
 	}
 
-	if role, ok := userRoles[c.Role]; ok {
-		if group, ok := role[groupName]; ok {
-			if s, ok := group[scope]; ok {
-				return s
-			}
-		} else if group, ok := role["all"]; ok {
-			if s, ok := group[scope]; ok {
-				return s
-			}
+	if role, ok := e.Rules[c.Role]; ok {
+		if s, ok := role[scope]; ok {
+			return s
 		}
 	}
 
@@ -39,26 +37,26 @@ func (c Context) WithScopes(scopes ...Scope) Context {
 	return c
 }
 
-func SetUserRole(roleName string, groupName string, scopes ...Scope) {
-	if _, ok := userRoles[roleName]; !ok {
-		userRoles[roleName] = Role{}
+func (e *Entity) SetRule(role Role, scopes ...Scope) {
+	if e.Rules == nil {
+		e.Rules = map[Role]map[Scope]bool{}
+	}
+	if e.Rules[role] == nil {
+		e.Rules[role] = map[Scope]bool{}
 	}
 
-	var role = map[Scope]bool{}
 	for _, scope := range scopes {
 		if scope == ScopeWrite {
-			role[ScopeAdd] = true
-			role[ScopeEdit] = true
-			role[ScopeDelete] = true
+			e.Rules[role][ScopeAdd] = true
+			e.Rules[role][ScopeEdit] = true
+			e.Rules[role][ScopeDelete] = true
 		} else if scope == ScopeOwn {
-			role[ScopeRead] = true
-			role[ScopeAdd] = true
-			role[ScopeEdit] = true
-			role[ScopeDelete] = true
+			e.Rules[role][ScopeRead] = true
+			e.Rules[role][ScopeAdd] = true
+			e.Rules[role][ScopeEdit] = true
+			e.Rules[role][ScopeDelete] = true
 		}
 
-		role[scope] = true
+		e.Rules[role][scope] = true
 	}
-
-	userRoles[roleName][groupName] = role
 }

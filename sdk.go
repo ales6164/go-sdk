@@ -60,6 +60,11 @@ func (s *MyServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 const apiPath = "/api/"
 
+type API struct {
+	Name   string   `json:"name"`
+	Fields []string `json:"fields"`
+}
+
 func NewApp(opt AppOptions) *SDK {
 	a := &SDK{
 		AppOptions: &opt,
@@ -79,27 +84,23 @@ func NewApp(opt AppOptions) *SDK {
 	a.HandleFunc("/enabled-apis", func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r)
 
-		/*var entities []interface{}
+		var enabledAPIs []API
 
-		for _, e := range enabledAPIs {
-
-			var fields []map[string]interface{}
-			for _, field := range e.fields {
-				if len(field.Widget.WidgetName()) != 0 {
-					var widget = map[string]interface{}{}
-					widget["type"] = field.Widget.WidgetName()
-					widget["field"] = field.Name
-					widget["options"] = field.Widget
-					fields = append(fields, widget)
-				}
+		for _, e := range enabledEntityAPIs {
+			if len(e.AdminFields) > 0 {
+				enabledAPIs = append(enabledAPIs, API{e.Name, e.AdminFields})
 			}
-			entities = append(entities, fields)
-		}*/
+		}
 
 		ctx.Print(w, enabledAPIs)
-
-		//ctx.Print(w, enabledAPIs)
 	})
+
+	// client handler
+	if _, err := clientIdSecret.init(); err != nil {
+		panic(err)
+	}
+	a.Handle("/auth/client", http.HandlerFunc(NewClientRequest(a)))
+	a.Handle("/auth/client/issue-token", http.HandlerFunc(IssueClientToken))
 
 	return a
 }
@@ -110,15 +111,18 @@ func NewApp(opt AppOptions) *SDK {
 
 // Recommended path "/api/"
 func (a *SDK) EnableAuthAPI() {
+	if _, err := lostPasswordRequest.init(); err != nil {
+		panic(err)
+	}
+	if _, err := userEntity.init(); err != nil {
+		panic(err)
+	}
+	if _, err := ProfileEntity.init(); err != nil {
+		panic(err)
+	}
 
 	a.HandleFunc("/profile", GetUserProfileHandler).Methods(http.MethodGet)
 	a.HandleFunc("/profile", EditUserProfileHandler).Methods(http.MethodPut)
-
-	/*a.HandleFunc("/auth/iam", AuthWithIAmUser(a)).Methods(http.MethodPost)
-	a.HandleFunc("/auth/iam/verify", VerifyIAmUser).Methods(http.MethodPost)*/
-
-	a.Router.Handle("/auth/client", http.HandlerFunc(NewClientRequest(a)))
-	a.Router.Handle("/auth/client/issue-token", http.HandlerFunc(IssueClientToken))
 
 	a.HandleFunc("/auth/login", LoginHandler).Methods(http.MethodPost)
 	a.HandleFunc("/auth/register", RegisterHandler).Methods(http.MethodPost)
@@ -163,7 +167,6 @@ func (a *SDK) EnableAuthAPI() {
 
 		ctx.PrintError(w, ErrNotAuthenticated, http.StatusUnauthorized)
 	}).Methods(http.MethodGet)
-
 }
 
 func (a *SDK) Handle(path string, handler http.Handler) *mux.Route {
@@ -178,4 +181,4 @@ func (a *SDK) Handler(handlerFunc http.HandlerFunc) http.Handler {
 	return a.middleware.Handler(http.Handler(handlerFunc))
 }
 
-var DefaultDataHolder = NewEntity("DefaultDataHolder", []*Field{})
+//var DefaultDataHolder = NewEntity("DefaultDataHolder", []*Field{})

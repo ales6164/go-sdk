@@ -39,7 +39,7 @@ func init() {
 }
 
 func (e *EntityDataHolder) Get(name string) interface{} {
-	if field, ok := e.Entity.Fields[name]; ok {
+	if field, ok := e.Entity.fields[name]; ok {
 		return e.data[field]
 	}
 	return nil
@@ -163,7 +163,7 @@ func (e *EntityDataHolder) JSON(ctx Context) (string, error) {
 
 // Safely appends value
 func (e *EntityDataHolder) AppendValue(name string, value interface{}) error {
-	if field, ok := e.Entity.Fields[name]; ok {
+	if field, ok := e.Entity.fields[name]; ok {
 		var c = &ValueContext{Field: field, Trust: Base}
 		return e.appendFieldValue(field, value, c)
 	}
@@ -177,7 +177,7 @@ func (e *EntityDataHolder) AppendValue(name string, value interface{}) error {
 func (e *EntityDataHolder) appendValue(name string, value interface{}, trust ValueTrust) error {
 	e.input[name] = value
 
-	if field, ok := e.Entity.Fields[name]; ok {
+	if field, ok := e.Entity.fields[name]; ok {
 
 		// to keep it from deleting value
 		// todo
@@ -245,7 +245,7 @@ func (e *EntityDataHolder) unsafeAppendFieldValue(field *Field, value interface{
 func (e *EntityDataHolder) Load(ps []datastore.Property) error {
 	/*e.data = map[*Field]interface{}{}*/
 	for _, prop := range ps {
-		if field, ok := e.Entity.Fields[prop.Name]; ok {
+		if field, ok := e.Entity.fields[prop.Name]; ok {
 
 			if prop.Multiple != field.Multiple {
 				return fmt.Errorf(ErrDatastoreFieldPropertyMultiDismatch, prop.Name)

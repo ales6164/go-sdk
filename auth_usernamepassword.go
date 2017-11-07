@@ -10,34 +10,10 @@ var userEntity *Entity
 var ProfileEntity *Entity
 var lostPasswordRequest *Entity
 
-/*func DefineEntityScopes(entity *Entity, scopes ...Scope) {
-	for _, scope := range scopes {
-		userRoleEntity.addField(&Field{
-			GroupName:    entity.Name,
-			Name:         string(scope),
-			DefaultValue: true,
-		})
-	}
-}*/
-
 func init() {
-	/*	userRoleEntity = NewEntity("userRole",
-			[]*Field{
-				{
-					Name:       "name",
-					IsRequired: true,
-				},
-				{
-					Name:       "scopes",
-					IsRequired: true,
-					Multiple:   true,
-				},
-			},
-		)
-		userRoleEntity.Cache.CacheOnWrite = true*/
-
-	lostPasswordRequest = NewEntity("lostPasswordRequest",
-		[]*Field{
+	lostPasswordRequest = &Entity{
+		Name: "lostPasswordRequest",
+		Fields: []*Field{
 			{
 				Name:       "email",
 				NoEdits:    true,
@@ -51,9 +27,10 @@ func init() {
 				DefaultValue: true,
 			},
 		},
-	)
-	userEntity = NewEntity("user",
-		[]*Field{
+	}
+	userEntity = &Entity{
+		Name: "user",
+		Fields: []*Field{
 			{
 				Name:       "email",
 				NoEdits:    true,
@@ -64,7 +41,7 @@ func init() {
 			},
 			{
 				Name:         "role",
-				DefaultValue: "user",
+				DefaultValue: SubscriberRole,
 			},
 			{
 				Name:       "password",
@@ -77,9 +54,10 @@ func init() {
 				TransformFunc: FuncHashTransform,
 			},
 		},
-	)
-	ProfileEntity = NewEntity("profile",
-		[]*Field{
+	}
+	ProfileEntity = &Entity{
+		Name: "profile",
+		Fields: []*Field{
 			{
 				Name:       "firstName",
 				IsRequired: true,
@@ -137,7 +115,7 @@ func init() {
 				},
 			},
 		},
-	)
+	}
 }
 
 func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
@@ -262,7 +240,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		data[name] = value
 	}
 
-	err = ctx.NewUserToken(d.id, d.Get("role").(string))
+	err = ctx.NewUserToken(d.id, Role(d.Get("role").(string)))
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
@@ -318,7 +296,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	var data = d.Output(ctx)
 
-	err = ctx.NewUserToken(d.id, d.Get("role").(string))
+	err = ctx.NewUserToken(d.id, Role(d.Get("role").(string)))
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return

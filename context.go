@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
+	"google.golang.org/appengine/datastore"
 )
 
 type Context struct {
@@ -17,8 +18,8 @@ type Context struct {
 
 	Context context.Context
 
-	User string
-	Role string
+	User string // encoded User key
+	Role Role
 
 	IsAuthenticated bool
 	Token           Token
@@ -35,7 +36,7 @@ func NewContext(r *http.Request) Context {
 	isAuthenticated, userRole, userKey, renewedToken, err := getUser(r)
 
 	if len(userRole) == 0 {
-		userRole = "guest"
+		userRole = GuestRole
 	}
 
 	return Context{
@@ -63,13 +64,17 @@ func (c Context) WithBody() Context {
 func (c Context) UserMatches(userKey interface{}) bool {
 	if userKeyString, ok := userKey.(string); ok {
 		return userKeyString == c.User
+	} else if userKeyDs, ok := userKey.(*datastore.Key); ok {
+		if key, err := datastore.DecodeKey(c.User); err == nil {
+			return userKeyDs.StringID() == key.StringID()
+		}
 	}
 	return false
 }
 
-func getUser(r *http.Request) (bool, string, string, Token, error) {
+func getUser(r *http.Request) (bool, Role, string, Token, error) {
 	var isAuthenticated bool
-	var userRoleKey string
+	var userRoleKey = ""
 	var userKey string
 	var renewedToken Token
 	var err error
@@ -82,22 +87,23 @@ func getUser(r *http.Request) (bool, string, string, Token, error) {
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			err = claims.Valid()
 			if err == nil {
-				if username, ok := claims["sub"].(string); ok {
-					if userRoleKey, ok := claims["role"].(string); ok {
-						return true, userRoleKey, username, renewedToken, err
+				var username string
+				if username, ok = claims["sub"].(string); ok {
+					if userRoleKey, ok = claims["role"].(string); ok {
+						return true, Role(userRoleKey), username, renewedToken, err
 					}
 				}
-				return isAuthenticated, userRoleKey, userKey, renewedToken, ErrIllegalAction
+				return isAuthenticated, Role(userRoleKey), userKey, renewedToken, ErrIllegalAction
 			} else if exp, ok := claims["exp"].(float64); ok {
 				// check if it's less than a week old
 				if time.Now().Unix()-int64(exp) < time.Now().Add(time.Hour * 24 * 7).Unix() {
 					if userKey, ok := claims["sub"].(string); ok {
 						if userRoleKey, ok := claims["role"].(string); ok {
-							renewedToken, err = newToken(userKey, userRoleKey)
+							renewedToken, err = newToken(userKey, Role(userRoleKey))
 							if err != nil {
-								return isAuthenticated, userRoleKey, userKey, renewedToken, err
+								return isAuthenticated, Role(userRoleKey), userKey, renewedToken, err
 							}
-							return true, userRoleKey, userKey, renewedToken, err
+							return true, Role(userRoleKey), userKey, renewedToken, err
 						}
 					}
 				}
@@ -105,5 +111,5 @@ func getUser(r *http.Request) (bool, string, string, Token, error) {
 		}
 	}
 
-	return isAuthenticated, userRoleKey, userKey, renewedToken, err
+	return isAuthenticated, Role(userRoleKey), userKey, renewedToken, err
 }
