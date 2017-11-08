@@ -1,5 +1,7 @@
 package sdk
 
+import "google.golang.org/appengine/log"
+
 //type role map[Role]map[Scope]bool
 
 //var userRoles = map[string]role{}
@@ -14,6 +16,8 @@ const (
 )
 
 func (c Context) HasScope(e *Entity, scope Scope) bool {
+	log.Debugf(c.Context, "HasScope: Entity %s, Scope %v", e.Name, scope)
+
 	if c.scopes != nil {
 		if s, ok := c.scopes[scope]; ok {
 			return s
@@ -21,6 +25,7 @@ func (c Context) HasScope(e *Entity, scope Scope) bool {
 	}
 
 	if role, ok := e.Rules[c.Role]; ok {
+		log.Debugf(c.Context, "HasScope: Role %s, Rule: %v", c.Role, role)
 		if s, ok := role[scope]; ok {
 			return s
 		}
@@ -55,6 +60,7 @@ func (e *Entity) SetRule(role Role, scopes ...Scope) {
 			e.Rules[role][ScopeAdd] = true
 			e.Rules[role][ScopeEdit] = true
 			e.Rules[role][ScopeDelete] = true
+			e.Rules[role][ScopeWrite] = true
 		}
 
 		e.Rules[role][scope] = true

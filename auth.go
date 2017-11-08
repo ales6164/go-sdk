@@ -51,7 +51,7 @@ func newToken(userKey string, userRole Role) (Token, error) {
 		"iat":  time.Now().Unix(),
 		"iss":  "sdk",
 		"sub":  userKey,
-		"role": userRole,
+		"rol": userRole,
 	})
 
 	signed, err := token.SignedString(signingKey)

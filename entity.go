@@ -17,15 +17,15 @@ import (
 )
 
 type Entity struct {
-	Name    string // Only a-Z characters allowed
-	Private bool   // Protects entity with user field - only creator has access
-	Cache   Cache  // Keeps values in memcache - good for categories, translations, ...
+	Name    string `json:"name"`    // Only a-Z characters allowed
+	Private bool   `json:"private"` // Protects entity with user field - only creator has access
+	Cache   Cache  `json:"-"`       // Keeps values in memcache - good for categories, translations, ...
 
 	fields map[string]*Field
-	Fields []*Field
+	Fields []*Field `json:"fields"`
 
 	// Admin configuration
-	AdminFields []string
+	Meta Meta `json:"meta"`
 
 	hasFileFields bool
 	parse map[string]func(ctx Context) (interface{}, error)
@@ -37,12 +37,12 @@ type Entity struct {
 	indexes map[string]*DocumentDefinition
 
 	// Rules
-	Rules map[Role]map[Scope]bool
+	Rules map[Role]map[Scope]bool `json:"rules"`
 
 	// Listener
-	OnBeforeWrite func(c Context, h *EntityDataHolder) error
-	OnAfterRead   func(c Context, h *EntityDataHolder) error
-	OnAfterWrite  func(c Context, h *EntityDataHolder) error
+	OnBeforeWrite func(c Context, h *EntityDataHolder) error `json:"-"`
+	OnAfterRead   func(c Context, h *EntityDataHolder) error `json:"-"`
+	OnAfterWrite  func(c Context, h *EntityDataHolder) error `json:"-"`
 }
 
 type Cache struct {
@@ -70,7 +70,7 @@ func (e *Entity) init() (*Entity, error) {
 		e.AddField(field)
 
 		// todo
-		if field.IsFile {
+		if field.Type == FileType {
 			e.parse[field.Name] = func(ctx Context) (interface{}, error) {
 				return saveFile(ctx, field.Name)
 			}
@@ -147,13 +147,13 @@ func (a *SDK) EnableEntity(e *Entity, guestScopes ...Scope) (*Entity, error) {
 		return e, err
 	}
 
-	e.SetRule(AdminRole, ScopeOwn)
-	e.SetRule(APIClientRole, ScopeOwn)
-
 	if len(guestScopes) > 0 {
 		e.SetRule(GuestRole, guestScopes...)
 		e.SetRule(SubscriberRole, guestScopes...)
 	}
+
+	e.SetRule(AdminRole, ScopeOwn)
+	e.SetRule(APIClientRole, ScopeOwn)
 
 	a.enableEntityAPI(e)
 

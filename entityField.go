@@ -23,7 +23,8 @@ type Field struct {
 	Name       string `json:"name"`
 	NoEdits    bool   `json:"noEdits"` // default true
 	IsRequired bool   `json:"isRequired"`
-	IsFile     bool   `json:"isFile"` // saves multipart file and returns url
+
+	Type FieldType `json:"type"` // for special backend functions; file - saves multipart file and returns url
 
 	Entity *Entity `json:"-"`      // if set, value should be encoded entity key
 	Lookup bool    `json:"lookup"` // if true it looks up entity value on output
@@ -40,7 +41,7 @@ type Field struct {
 	Validator     func(value interface{}) bool                                    `json:"-"`
 
 	//GroupEntity GroupEntity `json:"groupEntity"`   // if defined, value stored as an separate entity; in field stored key
-	Widget Widget `json:"widgetOptions"` // used for automatic admin html template creation
+	Meta Meta `json:"meta"` // used for automatic admin html template creation
 
 	SearchProps []interface{} `json:"-"`
 
@@ -48,6 +49,18 @@ type Field struct {
 	datastoreFieldName string `json:"-"`
 	fieldFunc []func(ctx *ValueContext, v interface{}) (interface{}, error) `json:"-"`
 }
+
+type FieldType string
+type Meta map[string]interface{}
+
+const (
+	FileType FieldType = "file"
+	/*ImageType FieldType = "image"
+	TextType FieldType = "text"
+	HTMLTemplateType FieldType = "html"
+	DateTimeType  FieldType = "datetime"
+	BooleanType  FieldType = "bool"*/
+)
 
 type GroupEntity struct {
 	Entity *Entity

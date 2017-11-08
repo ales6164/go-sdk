@@ -1,7 +1,16 @@
 package sdk
-
+/*
 type Widget interface {
 	WidgetName() string
+}
+
+func init() {
+	gob.Register(time.Now())
+	gob.Register(InputWidget{})
+	gob.Register(MediaWidget{})
+	gob.Register(SelectWidget{})
+	gob.Register(ConnectWidget{})
+	gob.Register(SummerNoteWidget{})
 }
 
 type InputWidget struct {
@@ -119,4 +128,4 @@ func (w MediaWidget) WidgetName() string {
 
 func (w SummerNoteWidget) WidgetName() string {
 	return "summernote"
-}
+}*/

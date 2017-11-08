@@ -181,7 +181,7 @@ func (e *EntityDataHolder) appendValue(name string, value interface{}, trust Val
 
 		// to keep it from deleting value
 		// todo
-		if field.IsFile && field.IsRequired {
+		if field.Type == FileType && field.IsRequired {
 			if fileUrl, ok := value.(string); !ok || len(fileUrl) == 0 {
 				return nil
 			}

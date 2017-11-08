@@ -89,7 +89,7 @@ func getUser(r *http.Request) (bool, Role, string, Token, error) {
 			if err == nil {
 				var username string
 				if username, ok = claims["sub"].(string); ok {
-					if userRoleKey, ok = claims["role"].(string); ok {
+					if userRoleKey, ok = claims["rol"].(string); ok {
 						return true, Role(userRoleKey), username, renewedToken, err
 					}
 				}
@@ -98,7 +98,7 @@ func getUser(r *http.Request) (bool, Role, string, Token, error) {
 				// check if it's less than a week old
 				if time.Now().Unix()-int64(exp) < time.Now().Add(time.Hour * 24 * 7).Unix() {
 					if userKey, ok := claims["sub"].(string); ok {
-						if userRoleKey, ok := claims["role"].(string); ok {
+						if userRoleKey, ok := claims["rol"].(string); ok {
 							renewedToken, err = newToken(userKey, Role(userRoleKey))
 							if err != nil {
 								return isAuthenticated, Role(userRoleKey), userKey, renewedToken, err

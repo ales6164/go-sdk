@@ -1,10 +1,7 @@
 package sdk
 
 import (
-	"encoding/gob"
 	"net/http"
-	"time"
-
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
@@ -35,14 +32,7 @@ type MyServer struct {
 
 var signingKey []byte
 
-func init() {
-	gob.Register(time.Now())
-	gob.Register(InputWidget{})
-	gob.Register(MediaWidget{})
-	gob.Register(SelectWidget{})
-	gob.Register(ConnectWidget{})
-	gob.Register(SummerNoteWidget{})
-}
+
 
 func (s *MyServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if origin := req.Header.Get("Origin"); origin != "" {
@@ -81,18 +71,9 @@ func NewApp(opt AppOptions) *SDK {
 	http.Handle(apiPath, &MyServer{a.Router})
 
 	// handler returns enabled apis
-	a.HandleFunc("/enabled-apis", func(w http.ResponseWriter, r *http.Request) {
+	a.HandleFunc("/entities", func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r)
-
-		var enabledAPIs []API
-
-		for _, e := range enabledEntityAPIs {
-			if len(e.AdminFields) > 0 {
-				enabledAPIs = append(enabledAPIs, API{e.Name, e.AdminFields})
-			}
-		}
-
-		ctx.Print(w, enabledAPIs)
+		ctx.Print(w, enabledEntityAPIs)
 	})
 
 	// client handler
