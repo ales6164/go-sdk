@@ -38,9 +38,40 @@ func init() {
 	gob.Register(time.Now())
 }
 
-func (e *EntityDataHolder) Get(name string) interface{} {
-	if field, ok := e.Entity.fields[name]; ok {
-		return e.data[field]
+func (e *EntityDataHolder) Get(ctx Context, name string) interface{} {
+	var endValue interface{}
+
+	sep := strings.Split(name, ".")
+	if field, ok := e.Entity.fields[sep[0]]; ok {
+		var value = e.data[field]
+
+		if field.Lookup && field.Entity != nil {
+			if field.Multiple {
+				endValue = []interface{}{}
+
+				for _, v := range value.([]interface{}) {
+					endV, _ := field.Entity.Lookup(ctx, v.(string))
+					endValue = append(endValue.([]interface{}), endV)
+				}
+			} else {
+				endValue, _ = field.Entity.Lookup(ctx, value.(string))
+			}
+		} else {
+			endValue = value
+		}
+
+		if len(sep) > 1 {
+			for i := 1; i < len(sep); i++ {
+				if endMap, ok := endValue.(map[string]interface{}); ok {
+					endValue = endMap[sep[i]]
+					/*if endValue, ok = endMap[sep[i]]; ok {}*/
+				} else {
+					return nil
+				}
+			}
+		}
+
+		return endValue
 	}
 	return nil
 }

@@ -53,10 +53,10 @@ func NewClientRequest(a *SDK) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if a.AppOptions.AdminEmail != formHolder.GetInput("email").(string) {
+		/*if a.AppOptions.AdminEmail != formHolder.GetInput("email").(string) {
 			ctx.PrintError(w, ErrNotAuthorized, http.StatusInternalServerError)
 			return
-		}
+		}*/
 
 		var secret = RandStringBytesMaskImprSrc(32)
 
@@ -77,7 +77,7 @@ func NewClientRequest(a *SDK) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = sendClientSecret(ctx, formHolder.GetInput("email").(string), holder.id, secret)
+		err = sendClientSecret(ctx, a.AppOptions.AdminEmail, holder.id, secret)
 		if err != nil {
 			ctx.PrintError(w, err, http.StatusInternalServerError)
 			return
@@ -108,7 +108,7 @@ func IssueClientToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if holder.Get("secret").(string) != formHolder.GetInput("clientSecret").(string) {
+	if holder.Get(ctx,"secret").(string) != formHolder.GetInput("clientSecret").(string) {
 		ctx.PrintError(w, ErrNotAuthorized, http.StatusUnauthorized)
 		return
 	}

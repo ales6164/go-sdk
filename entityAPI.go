@@ -5,15 +5,16 @@ import (
 	"google.golang.org/appengine/datastore"
 	"net/http"
 	"strconv"
+	"errors"
 )
 
 var enabledEntityAPIs []*Entity
 
 func (a *SDK) enableEntityAPI(e *Entity) {
 	a.HandleFunc("/entity/"+e.Name, e.handleGetEntityInfo()).Methods(http.MethodGet)
+	a.HandleFunc("/"+e.Name+"/datatable", e.handleDataTable()).Methods(http.MethodGet)
 	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handleGet()).Methods(http.MethodGet)
 	a.HandleFunc("/"+e.Name, e.handleQuery()).Methods(http.MethodGet)
-	a.HandleFunc("/"+e.Name+"/datatable", e.handleDataTable()).Methods(http.MethodGet)
 	a.HandleFunc("/"+e.Name, e.handleAdd()).Methods(http.MethodPost)
 	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handleEdit()).Methods(http.MethodPost)
 
@@ -110,6 +111,32 @@ func (e *Entity) handleDataTable() func(w http.ResponseWriter, r *http.Request) 
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r).WithBody()
 
+		var tableColumns []string
+		var datatable []string
+		if tc, ok := e.Meta["datatable"]; ok {
+			if datatable, ok = tc.([]string); !ok {
+				ctx.PrintError(w, errors.New("entity datatable meta definition should be of type string array"), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			ctx.PrintError(w, errors.New("entity has no datatable meta definition"), http.StatusInternalServerError)
+			return
+		}
+		if tc, ok := e.Meta["tableColumns"]; ok {
+			if tableColumns, ok = tc.([]string); !ok {
+				ctx.PrintError(w, errors.New("entity tableColumns meta definition should be of type string array"), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			ctx.PrintError(w, errors.New("entity has no tableColumns meta definition"), http.StatusInternalServerError)
+			return
+		}
+
+		if len(datatable) != len(tableColumns) {
+			ctx.PrintError(w, errors.New("entity datatable and tableColumns definitions are not of the same length"), http.StatusInternalServerError)
+			return
+		}
+
 		q := r.URL.Query()
 
 		sort := q.Get("sort")
@@ -125,19 +152,19 @@ func (e *Entity) handleDataTable() func(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		var data []map[string]interface{}
+		var data []interface{}
 		for _, h := range dataHolder {
-			data = append(data, h.Output(ctx))
+			var item = map[string]interface{}{}
+			for i, fieldName := range datatable {
+				item[tableColumns[i]] = h.Get(ctx, fieldName)
+			}
+			item["id"] = h.id
+			data = append(data, item)
 		}
 
-
-		//TODO
-		/*write(w, ctx.Token, http.StatusOK, "", responseKey, response)
-
-		ctx.Print(w, map[string]interface{}{
-			"data":   data,
-			"count":  len(data),
-		})*/
+		printOut(w, Result{
+			"data": data,
+		})
 	}
 }
 
@@ -166,8 +193,8 @@ func (e *Entity) handleQuery() func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ctx.Print(w, map[string]interface{}{
-			"data":   data,
-			"count":  len(data),
+			"data":  data,
+			"count": len(data),
 		})
 	}
 }

@@ -51,7 +51,7 @@ func (e *Entity) Query(ctx Context, sort string, limit int, filters ...EntityQue
 			h.id = key.Encode()
 
 			if e.Private {
-				if !ctx.UserMatches(h.Get("_createdBy")) {
+				if !ctx.UserMatches(h.Get(ctx,"_createdBy")) {
 					continue
 				}
 			}
@@ -79,7 +79,7 @@ func (e *Entity) Get(ctx Context, key *datastore.Key) (*EntityDataHolder, error)
 		encoded := key.Encode()
 		h.id = encoded
 		if e.Private {
-			if !ctx.UserMatches(h.Get("_createdBy")) {
+			if !ctx.UserMatches(h.Get(ctx,"_createdBy")) {
 				return nil, ErrNotAuthorized
 			}
 		}
@@ -160,7 +160,7 @@ func (e *Entity) Put(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 		encoded := key.Encode()
 		h.id = encoded
 		if e.Private {
-			if !ctx.UserMatches(h.Get("_createdBy")) {
+			if !ctx.UserMatches(h.Get(ctx,"_createdBy")) {
 				return nil, ErrNotAuthorized
 			}
 		}
@@ -193,7 +193,7 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 			encoded := key.Encode()
 			h.id = encoded
 			if e.Private {
-				if !ctx.UserMatches(h.Get("_createdBy")) {
+				if !ctx.UserMatches(h.Get(ctx,"_createdBy")) {
 					return nil, ErrNotAuthorized
 				}
 			}
@@ -211,7 +211,7 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 			err := datastore.Get(tc, key, h)
 			if err == nil {
 				if e.Private {
-					if !ctx.UserMatches(h.Get("_createdBy")) {
+					if !ctx.UserMatches(h.Get(ctx,"_createdBy")) {
 						return ErrNotAuthorized
 					}
 				}
@@ -277,7 +277,7 @@ func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 					return err
 				}
 				if e.Private {
-					if !ctx.UserMatches(h.Get("_createdBy")) {
+					if !ctx.UserMatches(h.Get(ctx,"_createdBy")) {
 						return ErrNotAuthorized
 					}
 				}

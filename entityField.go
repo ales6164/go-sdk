@@ -19,7 +19,7 @@ var (
 // todo: add ALS rules: read, write, ...
 // todo: grouping (productName, productPrice, ...)
 type Field struct {
-	GroupName  string `json:"groupName"` // can be heavy as creates an array for every field
+	GroupName  string `json:"groupName"` // Deprecated
 	Name       string `json:"name"`
 	NoEdits    bool   `json:"noEdits"` // default true
 	IsRequired bool   `json:"isRequired"`
@@ -27,7 +27,7 @@ type Field struct {
 	Type FieldType `json:"type"` // for special backend functions; file - saves multipart file and returns url
 
 	Entity *Entity `json:"-"`      // if set, value should be encoded entity key
-	Lookup bool    `json:"lookup"` // if true it looks up entity value on output
+	Lookup bool    `json:"lookup"` // if true, looks up entity value on output
 
 	DefaultValue interface{}                   `json:"defaultValue"`
 	ValueFunc    func() interface{}            `json:"-"`

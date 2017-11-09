@@ -41,7 +41,7 @@ func init() {
 			},
 			{
 				Name:         "role",
-				DefaultValue: SubscriberRole,
+				DefaultValue: string(SubscriberRole),
 			},
 			{
 				Name:       "password",
@@ -217,7 +217,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = decrypt([]byte(d.Get("password").([]uint8)), []byte(do.GetInput("password").(string)))
+	err = decrypt([]byte(d.Get(ctx, "password").([]uint8)), []byte(do.GetInput("password").(string)))
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
@@ -240,7 +240,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		data[name] = value
 	}
 
-	err = ctx.NewUserToken(d.id, Role(d.Get("role").(string)))
+	err = ctx.NewUserToken(d.id, Role(d.Get(ctx, "role").(string)))
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
@@ -270,7 +270,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, key, err := userEntity.NewKey(ctx, d.Get("email"))
+	ctx, key, err := userEntity.NewKey(ctx, d.Get(ctx, "email"))
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
@@ -296,7 +296,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	var data = d.Output(ctx)
 
-	err = ctx.NewUserToken(d.id, Role(d.Get("role").(string)))
+	err = ctx.NewUserToken(d.id, Role(d.Get(ctx, "role").(string)))
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
