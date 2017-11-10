@@ -24,6 +24,9 @@ type Entity struct {
 	fields map[string]*Field
 	Fields []*Field `json:"fields"`
 
+	// URL function or options struct? We might need some other options in the future
+	Render Render
+
 	// Admin configuration
 	Meta Meta `json:"meta"`
 
@@ -43,6 +46,11 @@ type Entity struct {
 	OnBeforeWrite func(c Context, h *EntityDataHolder) error `json:"-"`
 	OnAfterRead   func(c Context, h *EntityDataHolder) error `json:"-"`
 	OnAfterWrite  func(c Context, h *EntityDataHolder) error `json:"-"`
+}
+
+type Render struct {
+	Pattern  string `json:"pattern"` // "https://domain.com/:category/:id", "domain.com/other/{name}", ...
+	URLFunc func(c Context, r Render, h *EntityDataHolder) (interface{}, error) `json:"-"`
 }
 
 type Cache struct {
