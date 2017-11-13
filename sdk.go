@@ -10,7 +10,7 @@ import (
 )
 
 type SDK struct {
-	Router *mux.Router
+	Router       *mux.Router
 	*AppOptions
 	middleware   *JWTMiddleware
 	sessionStore *sessions.CookieStore
@@ -31,8 +31,6 @@ type MyServer struct {
 }
 
 var signingKey []byte
-
-
 
 func (s *MyServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if origin := req.Header.Get("Origin"); origin != "" {

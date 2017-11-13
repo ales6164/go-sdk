@@ -48,10 +48,7 @@ type Entity struct {
 	OnAfterWrite  func(c Context, h *EntityDataHolder) error `json:"-"`
 }
 
-type Render struct {
-	Pattern  string `json:"pattern"` // "https://domain.com/:category/:id", "domain.com/other/{name}", ...
-	URLFunc func(c Context, r Render, h *EntityDataHolder) (interface{}, error) `json:"-"`
-}
+
 
 type Cache struct {
 	CacheOnWrite bool          // if true, caches data on write
