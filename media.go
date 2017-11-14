@@ -8,6 +8,9 @@ import (
 	"errors"
 	"cloud.google.com/go/storage"
 	"golang.org/x/net/context"
+	"google.golang.org/appengine/blobstore"
+	"google.golang.org/appengine/image"
+	"path"
 )
 
 var bucketName string
@@ -23,7 +26,7 @@ func upload(w http.ResponseWriter, r *http.Request) {
 	ctx := NewContext(r)
 
 	if appengine.IsDevAppServer() {
-		ctx.PrintError(w, errors.New("Production server required"), http.StatusInternalServerError)
+		ctx.PrintError(w, errors.New("production server required"), http.StatusInternalServerError)
 		return
 	}
 
@@ -33,15 +36,57 @@ func upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx.Print(w, "https://storage.googleapis.com/" + bucketName + "/" + path)
+	ctx.Print(w, "https://storage.googleapis.com/"+bucketName+"/"+path.(string))
 }
 
-func saveFile(ctx Context, name string) (string, error) {
+func saveImage(ctx Context, name string) (interface{}, error) {
+	filePath, err := saveFile(ctx, name)
+	if err != nil {
+		return filePath, err
+	}
+
+	gsPath := path.Join("/gs/", bucketName, filePath.(string))
+
+	blobKey, err := blobstore.BlobKeyForFile(ctx.Context, gsPath)
+	if err != nil {
+		return filePath, errors.New("error reading file '" + gsPath + "': " + err.Error())
+	}
+
+	// Resize and crop the srcImage to fill the 100x100px area.
+	servingUrl, err := image.ServingURL(ctx.Context, blobKey, &image.ServingURLOptions{
+		Secure: true,
+	})
+	if err != nil {
+		return filePath, errors.New("error serving url: " + err.Error())
+	}
+
+	return servingUrl.String(), nil
+}
+
+func saveFile(ctx Context, name string) (interface{}, error) {
 	var path string
 	var err error
 
 	fileMultipart, fileHeader, err := ctx.r.FormFile(name)
 	if err != nil {
+		if ctx.r.MultipartForm == nil {
+			return path, errors.New("multipart form is nil")
+		}
+
+		if ctx.r.MultipartForm.File == nil {
+			return path, errors.New("multipart file is nil")
+		}
+
+		if fhs := ctx.r.MultipartForm.File[name]; len(fhs) > 0 {
+			return path, errors.New("multipart file exists")
+		} else {
+			var otherFiles = ""
+			for name := range ctx.r.MultipartForm.File {
+				otherFiles += name + ", "
+			}
+			return path, errors.New("multipart file array is empty for field '" + name + "'; there might be other fields: " + otherFiles)
+		}
+
 		return path, err
 	}
 	defer fileMultipart.Close()
@@ -50,7 +95,7 @@ func saveFile(ctx Context, name string) (string, error) {
 
 	bytes, err := ioutil.ReadAll(fileMultipart)
 	if err != nil {
-		return path, err
+		return path, errors.New("error reading uploaded file: " + err.Error())
 	}
 
 	return writeFile(ctx.Context, fileKeyName, fileHeader.Filename, bytes)

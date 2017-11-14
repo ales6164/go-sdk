@@ -55,6 +55,7 @@ type Meta map[string]interface{}
 
 const (
 	FileType FieldType = "file"
+	ImageType FieldType = "image"
 	/*ImageType FieldType = "image"
 	TextType FieldType = "text"
 	HTMLTemplateType FieldType = "html"

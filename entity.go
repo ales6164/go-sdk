@@ -12,8 +12,7 @@ import (
 	"reflect"
 	"regexp"
 	"time"
-	"github.com/google/uuid"
-	"io/ioutil"
+	"net/http"
 )
 
 type Entity struct {
@@ -31,7 +30,7 @@ type Entity struct {
 	Meta Meta `json:"meta"`
 
 	hasFileFields bool
-	parse map[string]func(ctx Context) (interface{}, error)
+	parse         map[string]Parser
 
 	preparedData map[*Field]func(ctx Context, f *Field) interface{}
 
@@ -48,16 +47,19 @@ type Entity struct {
 	OnAfterWrite  func(c Context, h *EntityDataHolder) error `json:"-"`
 }
 
-
-
 type Cache struct {
 	CacheOnWrite bool          // if true, caches data on write
 	Expiration   time.Duration // value expiration date. Zero means no expiration
 }
 
+type Parser struct {
+	Field     *Field
+	ParseFunc func(ctx Context, fieldName string) (interface{}, error)
+}
+
 func (e *Entity) init() (*Entity, error) {
 	e.preparedData = map[*Field]func(ctx Context, f *Field) interface{}{}
-	e.parse = map[string]func(ctx Context) (interface{}, error){}
+	e.parse = map[string]Parser{}
 
 	for _, field := range e.Fields {
 		if len(field.Name) == 0 {
@@ -76,8 +78,15 @@ func (e *Entity) init() (*Entity, error) {
 
 		// todo
 		if field.Type == FileType {
-			e.parse[field.Name] = func(ctx Context) (interface{}, error) {
-				return saveFile(ctx, field.Name)
+			e.parse[field.Name] = Parser{
+				Field:     field,
+				ParseFunc: saveFile,
+			}
+			e.hasFileFields = true
+		} else if field.Type == ImageType {
+			e.parse[field.Name] = Parser{
+				Field:     field,
+				ParseFunc: saveImage,
 			}
 			e.hasFileFields = true
 		}
@@ -87,7 +96,6 @@ func (e *Entity) init() (*Entity, error) {
 	e.AddField(&Field{
 		Name:           "_createdAt",
 		NoEdits:        true,
-		NoIndex:        true,
 		isSpecialField: true,
 		ValueFunc: func() interface{} {
 			return time.Now()
@@ -96,7 +104,6 @@ func (e *Entity) init() (*Entity, error) {
 	e.AddField(&Field{
 		Name:           "_createdBy",
 		NoEdits:        true,
-		NoIndex:        true,
 		isSpecialField: true,
 		Entity:         userEntity,
 		ContextFunc: func(ctx Context) interface{} {
@@ -111,7 +118,6 @@ func (e *Entity) init() (*Entity, error) {
 	})
 	e.AddField(&Field{
 		Name:           "_updatedAt",
-		NoIndex:        true,
 		isSpecialField: true,
 		ValueFunc: func() interface{} {
 			return time.Now()
@@ -119,7 +125,6 @@ func (e *Entity) init() (*Entity, error) {
 	})
 	e.AddField(&Field{
 		Name:           "_updatedBy",
-		NoIndex:        true,
 		isSpecialField: true,
 		Entity:         userEntity,
 		ContextFunc: func(ctx Context) interface{} {
@@ -345,9 +350,6 @@ func (e *Entity) NewKey(c Context, nameId interface{}) (Context, *datastore.Key,
 func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 	var h = e.New(c)
 
-	// todo: fix this
-	c.r.FormValue("a")
-
 	// e.parse only parses form values for now
 	/*for fieldName, fun := range e.parse {
 		val, err := fun(c)
@@ -360,11 +362,25 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 		}
 	}*/
 
+	// todo: fix this
+	c.r.FormValue("a")
+
 	if e.hasFileFields {
-		c.r.ParseMultipartForm(32 << 20)
+		for name, parser := range e.parse {
+			val, err := parser.ParseFunc(c, name)
+			if err == nil {
+				err = h.appendValue(name, val, Low)
+				if err != nil {
+					return h, err
+				}
+			} else if err != http.ErrMissingFile {
+				return h, err
+			}
+		}
+		/*c.r.ParseMultipartForm(32 << 20)
 		m := c.r.MultipartForm
 		for name, v := range m.File {
-			if _, ok := e.parse[name]; ok {
+			if parseFunc, ok := e.parse[name]; ok {
 				for _, f := range v {
 					file, err := f.Open()
 					if err != nil {
@@ -382,7 +398,7 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 						return h, err
 					}
 
-					/*log.Infof(c.Context, "Appending file url '%s' value: %s", name, url)*/
+					*//*log.Infof(c.Context, "Appending file url '%s' value: %s", name, url)*//*
 
 					err = h.appendValue(name, "https://storage.googleapis.com/"+bucketName+"/"+url, Low)
 					if err != nil {
@@ -390,7 +406,8 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 					}
 				}
 			}
-		}
+		}*/
+
 	}
 
 	err := c.r.ParseForm()
