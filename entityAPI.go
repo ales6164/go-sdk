@@ -234,7 +234,40 @@ func (e *Entity) handleQuery() func(w http.ResponseWriter, r *http.Request) {
 			limit, _ = strconv.Atoi(limitStr)
 		}
 
-		dataHolder, err := e.Query(ctx, sort, limit)
+		filterField := q.Get("filter[field]")
+		filterOp := q.Get("filter[op]")
+		filterValue := q.Get("filter[value]")
+
+		var filter EntityQueryFilter
+		if len(filterField) > 0 && len(filterOp) > 0 {
+
+			var op string
+			switch filterOp {
+			case "eq":
+				op = "="
+				break
+			case "lt":
+				op = "<"
+				break
+			case "le":
+				op = "<="
+				break
+			case "gt":
+				op = ">"
+				break
+			case "ge":
+				op = ">="
+				break
+			}
+
+			filter = EntityQueryFilter{
+				Name:     filterField,
+				Operator: op,
+				Value:    filterValue,
+			}
+		}
+
+		dataHolder, err := e.Query(ctx, sort, limit, filter)
 		if err != nil {
 			ctx.PrintError(w, err, http.StatusInternalServerError)
 			return

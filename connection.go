@@ -26,7 +26,9 @@ func (e *Entity) Query(ctx Context, sort string, limit int, filters ...EntityQue
 		q := datastore.NewQuery(e.Name)
 
 		for _, filter := range filters {
-			q = q.Filter(fmt.Sprintf("%s %s", filter.Name, filter.Operator), filter.Value)
+			if len(filter.Name) > 0 && len(filter.Operator) > 0 {
+				q = q.Filter(fmt.Sprintf("%s %s", filter.Name, filter.Operator), filter.Value)
+			}
 		}
 
 		if len(sort) != 0 {
