@@ -18,11 +18,7 @@ func (a *SDK) enableEntityAPI(e *Entity) {
 	a.HandleFunc("/"+e.Name, e.handleAdd()).Methods(http.MethodPost)
 	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handleEdit()).Methods(http.MethodPost)
 
-	// todo:
-	// Gets single field value
-	a.HandleFunc("/"+e.Name+"/{encodedKey}/{fieldName}", e.handleConstructPreviewURL()).Methods(http.MethodGet)
-	// Updates single field value
-	a.HandleFunc("/"+e.Name+"/{encodedKey}/{fieldName}", e.handleConstructPreviewURL()).Methods(http.MethodPost)
+	//a.HandleFunc("/"+e.Name+"/{encodedKey}/_url", e.handleSetURL()).Methods(http.MethodPost)
 
 	enabledEntityAPIs = append(enabledEntityAPIs, e)
 }
@@ -31,53 +27,6 @@ func (e *Entity) handleGetEntityInfo() func(w http.ResponseWriter, r *http.Reque
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r).WithBody()
 		ctx.Print(w, e)
-	}
-}
-
-func (e *Entity) handleGetField() func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithBody()
-		vars := mux.Vars(r)
-
-		encodedKey := vars["encodedKey"]
-		fieldName := vars["fieldName"]
-
-		ctx, key, err := e.DecodeKey(ctx, encodedKey)
-		if err != nil {
-			ctx.PrintError(w, err, http.StatusBadRequest)
-			return
-		}
-
-		dataHolder, err := e.GetField(ctx, key, fieldName)
-		if err != nil {
-			ctx.PrintError(w, err, http.StatusInternalServerError)
-			return
-		}
-
-		ctx.Print(w, dataHolder.Output(ctx))
-	}
-}
-
-func (e *Entity) handleConstructPreviewURL() func(w http.ResponseWriter, r *http.Request) {
-	rt := mux.NewRouter().NewRoute().Path(e.Render.Path)
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithBody()
-
-		holder, _ := emptyEntity.FromForm(ctx)
-
-		var vars []string
-		for key, val := range holder.input {
-			vars = append(vars, key, val.(string))
-		}
-
-		url, err := rt.URL(vars...)
-		if err != nil {
-			ctx.PrintError(w, err, http.StatusInternalServerError)
-			return
-		}
-
-		ctx.Print(w, url.String())
 	}
 }
 

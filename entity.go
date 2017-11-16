@@ -93,6 +93,15 @@ func (e *Entity) init() (*Entity, error) {
 	}
 
 	// add special fields
+	if val, ok := e.Meta["publishedAt"]; ok {
+		e.AddField(&Field{
+			Name:           "_publishedAt",
+			isSpecialField: true,
+			TransformFunc: func(ctx *ValueContext, value interface{}) (interface{}, error) {
+				return time.Parse(val.(string), value.(string))
+			},
+		})
+	}
 	e.AddField(&Field{
 		Name:           "_createdAt",
 		NoEdits:        true,

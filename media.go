@@ -30,13 +30,13 @@ func upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path, err := saveFile(ctx, "file")
+	p, err := saveFile(ctx, "file")
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	ctx.Print(w, "https://storage.googleapis.com/"+bucketName+"/"+path.(string))
+	ctx.Print(w, "https://storage.googleapis.com/"+bucketName+"/"+p.(string))
 }
 
 func saveImage(ctx Context, name string) (interface{}, error) {
@@ -64,12 +64,12 @@ func saveImage(ctx Context, name string) (interface{}, error) {
 }
 
 func saveFile(ctx Context, name string) (interface{}, error) {
-	var path string
+	var p string
 	var err error
 
 	fileMultipart, fileHeader, err := ctx.r.FormFile(name)
 	if err != nil {
-		if ctx.r.MultipartForm == nil {
+		/*if ctx.r.MultipartForm == nil {
 			return path, errors.New("multipart form is nil")
 		}
 
@@ -85,9 +85,8 @@ func saveFile(ctx Context, name string) (interface{}, error) {
 				otherFiles += name + ", "
 			}
 			return path, errors.New("multipart file array is empty for field '" + name + "'; there might be other fields: " + otherFiles)
-		}
-
-		return path, err
+		}*/
+		return p, err
 	}
 	defer fileMultipart.Close()
 
@@ -95,42 +94,42 @@ func saveFile(ctx Context, name string) (interface{}, error) {
 
 	bytes, err := ioutil.ReadAll(fileMultipart)
 	if err != nil {
-		return path, errors.New("error reading uploaded file: " + err.Error())
+		return p, errors.New("error reading uploaded file: " + err.Error())
 	}
 
 	return writeFile(ctx.Context, fileKeyName, fileHeader.Filename, bytes)
 }
 
 func writeFile(ctx context.Context, key string, name string, bs []byte) (string, error) {
-	var path string
+	var p string
 	var err error
 
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return path, err
+		return p, err
 	}
 	defer client.Close()
 
 	bucket := client.Bucket(bucketName)
 
-	path = mediaDir + "/" + key + "--" + name
+	p = mediaDir + "/" + key + "--" + name
 
-	obj := bucket.Object(path)
+	obj := bucket.Object(p)
 	wc := obj.NewWriter(ctx)
 
 	_, err = wc.Write(bs)
 	if err != nil {
-		return path, err
+		return p, err
 	}
 	err = wc.Close()
 	if err != nil {
-		return path, err
+		return p, err
 	}
 
 	acl := obj.ACL()
 	if err := acl.Set(ctx, storage.AllUsers, storage.RoleReader); err != nil {
-		return path, err
+		return p, err
 	}
 
-	return path, err
+	return p, err
 }

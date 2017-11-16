@@ -70,48 +70,31 @@ func (e *Entity) Query(ctx Context, sort string, limit int, filters ...EntityQue
 	return hs, ErrNotAuthorized
 }
 
-func (e *Entity) GetField(ctx Context, key *datastore.Key, fieldName string) (*EntityDataHolder, error) {
+func (e *Entity) GetValues(ctx Context, key *datastore.Key, fieldNames ...string) (*EntityDataHolder, error) {
 	var h = e.New(ctx)
 	h.isNew = false
 	if ctx.HasScope(e, ScopeRead) {
-		_, err := datastore.NewQuery(e.Name).Filter("__key__", key).Project(fieldName).GetAll(ctx.Context, h)
-		if err != nil {
-			return h, err
-		}
-		encoded := key.Encode()
-		h.id = encoded
-		if e.Private {
-			if !ctx.UserMatches(h.Get(ctx, "_createdBy")) {
-				return nil, ErrNotAuthorized
+		q := datastore.NewQuery(e.Name).Filter("__key__", key).Project(fieldNames...)
+		t := q.Run(ctx.Context)
+		for {
+			key, err := t.Next(h)
+			if err == datastore.Done {
+				break
+			}
+			if err != nil {
+				return h, err
+			}
+			h.id = key.Encode()
+			if e.Private {
+				if !ctx.UserMatches(h.Get(ctx, "_createdBy")) {
+					continue
+				}
+			}
+			if e.OnAfterRead != nil {
+				err = e.OnAfterRead(ctx, h)
 			}
 		}
-		if e.OnAfterRead != nil {
-			err = e.OnAfterRead(ctx, h)
-		}
-		return h, err
-	}
-	return h, ErrNotAuthorized
-}
-
-func (e *Entity) PutField(ctx Context, key *datastore.Key, fieldName string) (*EntityDataHolder, error) {
-	var h = e.New(ctx)
-	h.isNew = false
-	if ctx.HasScope(e, ScopeRead) {
-		_, err := datastore.NewQuery(e.Name).Filter("__key__", key).Project(fieldName).GetAll(ctx.Context, h)
-		if err != nil {
-			return h, err
-		}
-		encoded := key.Encode()
-		h.id = encoded
-		if e.Private {
-			if !ctx.UserMatches(h.Get(ctx, "_createdBy")) {
-				return nil, ErrNotAuthorized
-			}
-		}
-		if e.OnAfterRead != nil {
-			err = e.OnAfterRead(ctx, h)
-		}
-		return h, err
+		return h, nil
 	}
 	return h, ErrNotAuthorized
 }
