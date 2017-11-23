@@ -25,8 +25,10 @@ type Field struct {
 	IsRequired bool   `json:"isRequired"`
 
 	Type FieldType `json:"type"` // for special backend functions; file - saves multipart file and returns url
+	// todo: search
+	SearchType SearchType  `json:"type"`  // enables search if set
 
-	Entity *Entity `json:"-"`      // if set, value should be encoded entity key
+	Entity string `json:"-"`      // if set, value should be encoded entity key
 	Lookup bool    `json:"lookup"` // if true, looks up entity value on output
 
 	DefaultValue interface{}                   `json:"defaultValue"`

@@ -45,16 +45,16 @@ func (e *EntityDataHolder) Get(ctx Context, name string) interface{} {
 	if field, ok := e.Entity.fields[sep[0]]; ok {
 		var value = e.data[field]
 
-		if field.Lookup && field.Entity != nil {
+		if field.Lookup && len(field.Entity) > 0 {
 			if field.Multiple {
 				endValue = []interface{}{}
 
 				for _, v := range value.([]interface{}) {
-					endV, _ := field.Entity.Lookup(ctx, v.(string))
+					endV, _ := Entities[field.Entity].Lookup(ctx, v.(string))
 					endValue = append(endValue.([]interface{}), endV)
 				}
 			} else {
-				endValue, _ = field.Entity.Lookup(ctx, value.(string))
+				endValue, _ = Entities[field.Entity].Lookup(ctx, value.(string))
 			}
 		} else {
 			endValue = value
@@ -86,7 +86,7 @@ func output(ctx Context, id string, data Data, cacheLookup bool) map[string]inte
 
 	// range over data. Value can be single value or if the field it Multiple then it's an array
 	for field, value := range data {
-		var doCacheLookup = cacheLookup && field.Lookup && field.Entity != nil
+		var doCacheLookup = cacheLookup && field.Lookup && len(field.Entity) > 0
 
 		if field.Json == NoJsonOutput {
 			continue
@@ -124,7 +124,7 @@ func output(ctx Context, id string, data Data, cacheLookup bool) map[string]inte
 					}
 
 					if doCacheLookup {
-						v, _ = field.Entity.Lookup(ctx, v.(string))
+						v, _ = Entities[field.Entity].Lookup(ctx, v.(string))
 					}
 
 					groupField["items"].([]map[string]interface{})[groupField["LastPropCount"].(int)][field.Name] = v
@@ -135,14 +135,14 @@ func output(ctx Context, id string, data Data, cacheLookup bool) map[string]inte
 				}
 			} else {
 				if doCacheLookup {
-					value, _ = field.Entity.Lookup(ctx, value.(string))
+					value, _ = Entities[field.Entity].Lookup(ctx, value.(string))
 				}
 
 				output[field.GroupName].(map[string]interface{})[field.Name] = value
 			}
 		} else {
 			if doCacheLookup {
-				value, _ = field.Entity.Lookup(ctx, value.(string))
+				value, _ = Entities[field.Entity].Lookup(ctx, value.(string))
 			}
 
 			output[field.Name] = value

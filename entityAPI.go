@@ -141,6 +141,11 @@ func (e *Entity) handleDataTable() func(w http.ResponseWriter, r *http.Request) 
 
 		q := r.URL.Query()
 
+		// datatable params
+		//todo:
+		/*draw := q.Get("draw")
+		search := q.Get("search[value]")*/
+
 		sort := q.Get("sort")
 		limitStr := q.Get("limit")
 		var limit = 0

@@ -57,6 +57,8 @@ type Parser struct {
 	ParseFunc func(ctx Context, fieldName string) (interface{}, error)
 }
 
+var Entities = map[string]*Entity{}
+
 func (e *Entity) init() (*Entity, error) {
 	e.preparedData = map[*Field]func(ctx Context, f *Field) interface{}{}
 	e.parse = map[string]Parser{}
@@ -114,7 +116,7 @@ func (e *Entity) init() (*Entity, error) {
 		Name:           "_createdBy",
 		NoEdits:        true,
 		isSpecialField: true,
-		Entity:         userEntity,
+		Entity:         userEntity.Name,
 		ContextFunc: func(ctx Context) interface{} {
 			if len(ctx.User) > 0 {
 				if key, err := datastore.DecodeKey(ctx.User); err == nil {
@@ -135,7 +137,7 @@ func (e *Entity) init() (*Entity, error) {
 	e.AddField(&Field{
 		Name:           "_updatedBy",
 		isSpecialField: true,
-		Entity:         userEntity,
+		Entity:         userEntity.Name,
 		ContextFunc: func(ctx Context) interface{} {
 			if len(ctx.User) > 0 {
 				if key, err := datastore.DecodeKey(ctx.User); err == nil {
@@ -146,6 +148,8 @@ func (e *Entity) init() (*Entity, error) {
 			return nil
 		},
 	})
+
+	Entities[e.Name] = e
 
 	return e, nil
 }

@@ -11,6 +11,10 @@ type Document struct {
 	Value  map[string]interface{}
 }
 
+type SearchType struct {
+
+}
+
 func (d *Document) AddFields(f ...search.Field) error {
 	d.Fields = append(d.Fields, f...)
 	return nil
