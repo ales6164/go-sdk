@@ -111,7 +111,7 @@ func (e *Entity) handleEdit() func(w http.ResponseWriter, r *http.Request) {
 
 func (e *Entity) handleDataTable() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewContext(r).WithBody()
+		ctx := NewContext(r)
 
 		var tableColumns []string
 		var datatable []string

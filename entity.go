@@ -72,7 +72,7 @@ func (e *Entity) init() (*Entity, error) {
 			panic(errors.New("field name _id/id is reserved and can't be used"))
 		}
 
-		if field.Name[:1] == "_" {
+		if field.Name[:1] == "_" && !field.isSpecialField {
 			panic(errors.New("field name can't start with an underscore"))
 		}
 
@@ -97,7 +97,10 @@ func (e *Entity) init() (*Entity, error) {
 	// add special fields
 	if val, ok := e.Meta["publishedAt"]; ok {
 		e.AddField(&Field{
-			Name:           "_publishedAt",
+			Name: "_publishedAt",
+			Meta: Meta{
+				"label": "Published",
+			},
 			isSpecialField: true,
 			TransformFunc: func(ctx *ValueContext, value interface{}) (interface{}, error) {
 				return time.Parse(val.(string), value.(string))
@@ -105,30 +108,11 @@ func (e *Entity) init() (*Entity, error) {
 		})
 	}
 	e.AddField(&Field{
-		Name:           "_createdAt",
-		NoEdits:        true,
-		isSpecialField: true,
-		ValueFunc: func() interface{} {
-			return time.Now()
+		Name: "_updatedAt",
+		Meta: Meta{
+			"label": "Updated",
+			"type":  "datetime",
 		},
-	})
-	e.AddField(&Field{
-		Name:           "_createdBy",
-		NoEdits:        true,
-		isSpecialField: true,
-		Entity:         userEntity.Name,
-		ContextFunc: func(ctx Context) interface{} {
-			if len(ctx.User) > 0 {
-				if key, err := datastore.DecodeKey(ctx.User); err == nil {
-					return key
-				}
-				return nil
-			}
-			return nil
-		},
-	})
-	e.AddField(&Field{
-		Name:           "_updatedAt",
 		isSpecialField: true,
 		ValueFunc: func() interface{} {
 			return time.Now()
@@ -152,6 +136,19 @@ func (e *Entity) init() (*Entity, error) {
 	Entities[e.Name] = e
 
 	return e, nil
+}
+
+var CreatedAt = &Field{
+	Name:           "_createdAt",
+	NoEdits:        true,
+	isSpecialField: true,
+	Meta: Meta{
+		"label": "Created",
+		"type":  "datetime",
+	},
+	ValueFunc: func() interface{} {
+		return time.Now()
+	},
 }
 
 func (a *SDK) EnableEntity(e *Entity, guestScopes ...Scope) (*Entity, error) {
