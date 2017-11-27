@@ -96,18 +96,15 @@ func (e *Entity) init() (*Entity, error) {
 
 	// add special fields
 	if val, ok := e.Meta["publishedAt"]; ok {
-		e.AddField(&Field{
-			Name: "_publishedAt",
-			Meta: Meta{
-				"label": "Published",
-			},
-			isSpecialField: true,
-			TransformFunc: func(ctx *ValueContext, value interface{}) (interface{}, error) {
-				return time.Parse(val.(string), value.(string))
-			},
-		})
+		PublishedAt.TransformFunc = func(ctx *ValueContext, value interface{}) (interface{}, error) {
+			return time.Parse(val.(string), value.(string))
+		}
+		e.Fields = append(e.Fields, PublishedAt)
+		e.AddField(PublishedAt)
 	}
 	e.AddField(CreatedAt)
+	e.Fields = append(e.Fields, CreatedAt)
+
 	e.AddField(&Field{
 		Name: "_updatedAt",
 		Meta: Meta{
@@ -120,8 +117,23 @@ func (e *Entity) init() (*Entity, error) {
 		},
 	})
 	e.AddField(&Field{
+		Name:           "_createdBy",
+		isSpecialField: true,
+		Entity:         userEntity.Name,
+		ContextFunc: func(ctx Context) interface{} {
+			if len(ctx.User) > 0 {
+				if key, err := datastore.DecodeKey(ctx.User); err == nil {
+					return key
+				}
+				return nil
+			}
+			return nil
+		},
+	})
+	e.AddField(&Field{
 		Name:           "_updatedBy",
 		isSpecialField: true,
+		NoEdits:        true,
 		Entity:         userEntity.Name,
 		ContextFunc: func(ctx Context) interface{} {
 			if len(ctx.User) > 0 {
@@ -137,6 +149,15 @@ func (e *Entity) init() (*Entity, error) {
 	Entities[e.Name] = e
 
 	return e, nil
+}
+
+var PublishedAt = &Field{
+	Name: "_publishedAt",
+	Meta: Meta{
+		"label": "Published",
+		"type":  "datetime",
+	},
+	isSpecialField: true,
 }
 
 var CreatedAt = &Field{
