@@ -107,6 +107,7 @@ func (e *Entity) init() (*Entity, error) {
 			},
 		})
 	}
+	e.AddField(CreatedAt)
 	e.AddField(&Field{
 		Name: "_updatedAt",
 		Meta: Meta{
