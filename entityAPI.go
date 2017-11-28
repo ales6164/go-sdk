@@ -14,6 +14,7 @@ func (a *SDK) enableEntityAPI(e *Entity) {
 	a.HandleFunc("/entity/"+e.Name, e.handleGetEntityInfo()).Methods(http.MethodGet)
 	a.HandleFunc("/"+e.Name+"/datatable", e.handleDataTable()).Methods(http.MethodGet)
 	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handleGet()).Methods(http.MethodGet)
+	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handleDelete()).Methods(http.MethodDelete)
 	a.HandleFunc("/"+e.Name, e.handleQuery()).Methods(http.MethodGet)
 	a.HandleFunc("/"+e.Name, e.handleAdd()).Methods(http.MethodPost)
 	a.HandleFunc("/"+e.Name+"/{encodedKey}", e.handleEdit()).Methods(http.MethodPost)
@@ -50,6 +51,29 @@ func (e *Entity) handleGet() func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ctx.Print(w, dataHolder.Output(ctx))
+	}
+}
+
+func (e *Entity) handleDelete() func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := NewContext(r)
+		vars := mux.Vars(r)
+
+		encodedKey := vars["encodedKey"]
+
+		ctx, key, err := e.DecodeKey(ctx, encodedKey)
+		if err != nil {
+			ctx.PrintError(w, err, http.StatusBadRequest)
+			return
+		}
+
+		err = e.Delete(ctx, key)
+		if err != nil {
+			ctx.PrintError(w, err, http.StatusInternalServerError)
+			return
+		}
+
+		ctx.Print(w, "success")
 	}
 }
 

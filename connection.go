@@ -124,6 +124,13 @@ func (e *Entity) Get(ctx Context, key *datastore.Key) (*EntityDataHolder, error)
 	return h, ErrNotAuthorized
 }
 
+func (e *Entity) Delete(ctx Context, key *datastore.Key) error {
+	if ctx.HasScope(e, ScopeDelete) {
+		return datastore.Delete(ctx.Context, key)
+	}
+	return ErrNotAuthorized
+}
+
 func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
 	var err error
 	if ctx.HasScope(e, ScopeAdd) {
