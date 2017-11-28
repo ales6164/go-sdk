@@ -148,12 +148,17 @@ func (e *Entity) handleDataTable() func(w http.ResponseWriter, r *http.Request) 
 
 		sort := q.Get("sort")
 		limitStr := q.Get("limit")
+		offsetStr := q.Get("offset")
 		var limit = 0
+		var offset = 0
 		if len(limitStr) != 0 {
 			limit, _ = strconv.Atoi(limitStr)
 		}
+		if len(offsetStr) != 0 {
+			offset, _ = strconv.Atoi(offsetStr)
+		}
 
-		dataHolder, err := e.Query(ctx, sort, limit)
+		dataHolder, err := e.Query(ctx, sort,offset, limit)
 		if err != nil {
 			ctx.PrintError(w, err, http.StatusInternalServerError)
 			return
@@ -183,9 +188,14 @@ func (e *Entity) handleQuery() func(w http.ResponseWriter, r *http.Request) {
 
 		sort := q.Get("sort")
 		limitStr := q.Get("limit")
+		offsetStr := q.Get("offset")
 		var limit = 0
+		var offset = 0
 		if len(limitStr) != 0 {
 			limit, _ = strconv.Atoi(limitStr)
+		}
+		if len(offsetStr) != 0 {
+			offset, _ = strconv.Atoi(offsetStr)
 		}
 
 		filterField := q.Get("filter[field]")
@@ -221,7 +231,7 @@ func (e *Entity) handleQuery() func(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		dataHolder, err := e.Query(ctx, sort, limit, filter)
+		dataHolder, err := e.Query(ctx, sort, limit, offset, filter)
 		if err != nil {
 			ctx.PrintError(w, err, http.StatusInternalServerError)
 			return

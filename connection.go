@@ -19,7 +19,7 @@ type EntityQueryFilter struct {
 	Value    interface{} `json:"value"`
 }
 
-func (e *Entity) Query(ctx Context, sort string, limit int, filters ...EntityQueryFilter) ([]*EntityDataHolder, error) {
+func (e *Entity) Query(ctx Context, sort string, limit int, offset int, filters ...EntityQueryFilter) ([]*EntityDataHolder, error) {
 	var hs []*EntityDataHolder
 
 	if ctx.HasScope(e, ScopeRead) {
@@ -38,6 +38,8 @@ func (e *Entity) Query(ctx Context, sort string, limit int, filters ...EntityQue
 		if limit != 0 {
 			q = q.Limit(limit)
 		}
+
+		q = q.Offset(offset)
 
 		t := q.Run(ctx.Context)
 		for {
