@@ -36,16 +36,16 @@ func upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx.Print(w, "https://storage.googleapis.com/"+bucketName+"/"+p.(string))
+	ctx.Print(w, p.(string))
 }
 
 func saveImage(ctx Context, name string) (interface{}, error) {
-	filePath, err := saveFile(ctx, name)
+	filePath, err := save(ctx, name)
 	if err != nil {
 		return filePath, err
 	}
 
-	gsPath := path.Join("/gs/", bucketName, filePath.(string))
+	gsPath := path.Join("/gs/", bucketName, filePath)
 
 	blobKey, err := blobstore.BlobKeyForFile(ctx.Context, gsPath)
 	if err != nil {
@@ -64,28 +64,20 @@ func saveImage(ctx Context, name string) (interface{}, error) {
 }
 
 func saveFile(ctx Context, name string) (interface{}, error) {
+	p, err := save(ctx, name)
+	if err != nil || len(p) == 0 {
+		return p, err
+	}
+
+	return "https://storage.googleapis.com/" + bucketName + "/" + p, nil
+}
+
+func save(ctx Context, name string) (string, error) {
 	var p string
 	var err error
 
 	fileMultipart, fileHeader, err := ctx.r.FormFile(name)
 	if err != nil {
-		/*if ctx.r.MultipartForm == nil {
-			return path, errors.New("multipart form is nil")
-		}
-
-		if ctx.r.MultipartForm.File == nil {
-			return path, errors.New("multipart file is nil")
-		}
-
-		if fhs := ctx.r.MultipartForm.File[name]; len(fhs) > 0 {
-			return path, errors.New("multipart file exists")
-		} else {
-			var otherFiles = ""
-			for name := range ctx.r.MultipartForm.File {
-				otherFiles += name + ", "
-			}
-			return path, errors.New("multipart file array is empty for field '" + name + "'; there might be other fields: " + otherFiles)
-		}*/
 		return p, err
 	}
 	defer fileMultipart.Close()
