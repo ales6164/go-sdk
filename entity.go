@@ -97,6 +97,9 @@ func (e *Entity) init() (*Entity, error) {
 	// add special fields
 	if val, ok := e.Meta["publishedAt"]; ok {
 		PublishedAt.TransformFunc = func(ctx *ValueContext, value interface{}) (interface{}, error) {
+			if tm, ok := value.(time.Time); ok {
+				return tm, nil
+			}
 			return time.Parse(val.(string), value.(string))
 		}
 		e.Fields = append(e.Fields, PublishedAt)
