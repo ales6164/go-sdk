@@ -36,6 +36,7 @@ const (
 
 func init() {
 	gob.Register(time.Now())
+	gob.Register(datastore.Key{})
 }
 
 func (e *EntityDataHolder) Get(ctx Context, name string) interface{} {
