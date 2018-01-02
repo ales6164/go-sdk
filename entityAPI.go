@@ -1,11 +1,12 @@
 package sdk
 
 import (
-	"github.com/gorilla/mux"
-	"google.golang.org/appengine/datastore"
+	"errors"
 	"net/http"
 	"strconv"
-	"errors"
+
+	"github.com/gorilla/mux"
+	"google.golang.org/appengine/datastore"
 )
 
 var enabledEntityAPIs []*Entity
@@ -182,7 +183,7 @@ func (e *Entity) handleDataTable() func(w http.ResponseWriter, r *http.Request) 
 			offset, _ = strconv.Atoi(offsetStr)
 		}
 
-		dataHolder, err := e.Query(ctx, sort,offset, limit)
+		dataHolder, err := e.Query(ctx, sort, offset, limit)
 		if err != nil {
 			ctx.PrintError(w, err, http.StatusInternalServerError)
 			return
@@ -194,7 +195,7 @@ func (e *Entity) handleDataTable() func(w http.ResponseWriter, r *http.Request) 
 			for i, fieldName := range datatable {
 				item[tableColumns[i]] = h.Get(ctx, fieldName)
 			}
-			item["id"] = h.id
+			item["id"] = h.Id
 			data = append(data, item)
 		}
 

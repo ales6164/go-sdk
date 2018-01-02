@@ -30,10 +30,10 @@ func (e *Entity) CacheData(ctx Context, holder *EntityDataHolder) error {
 }
 
 func (e *Entity) cacheData(ctx Context, holder *EntityDataHolder) (map[string]interface{}, error) {
-	var output = output(ctx, holder.id, holder.data, false)
+	var output = output(ctx, holder.Id, holder.data, false)
 
 	var item = &memcache.Item{
-		Key:        holder.id,
+		Key:        holder.Id,
 		Expiration: e.Cache.Expiration,
 		Object:     output,
 	}

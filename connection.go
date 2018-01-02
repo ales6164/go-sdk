@@ -3,6 +3,7 @@ package sdk
 import (
 	"errors"
 	"fmt"
+
 	"golang.org/x/net/context"
 	"google.golang.org/appengine/datastore"
 )
@@ -52,7 +53,7 @@ func (e *Entity) Query(ctx Context, sort string, limit int, offset int, filters 
 			if err != nil {
 				return hs, err
 			}
-			h.id = key.Encode()
+			h.Id = key.Encode()
 
 			if e.Private {
 				if !ctx.UserMatches(h.Get(ctx, "_createdBy")) {
@@ -86,7 +87,7 @@ func (e *Entity) GetValues(ctx Context, key *datastore.Key, fieldNames ...string
 			if err != nil {
 				return h, err
 			}
-			h.id = key.Encode()
+			h.Id = key.Encode()
 			if e.Private {
 				if !ctx.UserMatches(h.Get(ctx, "_createdBy")) {
 					continue
@@ -110,7 +111,7 @@ func (e *Entity) Get(ctx Context, key *datastore.Key) (*EntityDataHolder, error)
 			return h, err
 		}
 		encoded := key.Encode()
-		h.id = encoded
+		h.Id = encoded
 		if e.Private {
 			if !ctx.UserMatches(h.Get(ctx, "_createdBy")) {
 				return nil, ErrNotAuthorized
@@ -150,7 +151,7 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 							return err
 						}
 						encoded := key.Encode()
-						h.id = encoded
+						h.Id = encoded
 						e.PutToIndexes(tc, encoded, h)
 						if e.OnAfterWrite != nil {
 							err = e.OnAfterWrite(ctx, h)
@@ -175,7 +176,7 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 				return key, err
 			}
 			encoded := key.Encode()
-			h.id = encoded
+			h.Id = encoded
 			e.PutToIndexes(ctx.Context, encoded, h)
 			if e.OnAfterWrite != nil {
 				err = e.OnAfterWrite(ctx, h)
@@ -198,7 +199,7 @@ func (e *Entity) Put(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 			return key, err
 		}
 		encoded := key.Encode()
-		h.id = encoded
+		h.Id = encoded
 		if e.Private {
 			if !ctx.UserMatches(h.Get(ctx, "_createdBy")) {
 				return nil, ErrNotAuthorized
@@ -231,7 +232,7 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 				return key, err
 			}
 			encoded := key.Encode()
-			h.id = encoded
+			h.Id = encoded
 			if e.Private {
 				if !ctx.UserMatches(h.Get(ctx, "_createdBy")) {
 					return nil, ErrNotAuthorized
@@ -268,7 +269,7 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 						return err
 					}
 					encoded := key.Encode()
-					h.id = encoded
+					h.Id = encoded
 					e.PutToIndexes(ctx.Context, encoded, h)
 					if e.OnAfterWrite != nil {
 						err = e.OnAfterWrite(ctx, h)
@@ -289,7 +290,7 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 				return err
 			}
 			encoded := key.Encode()
-			h.id = encoded
+			h.Id = encoded
 			e.PutToIndexes(ctx.Context, encoded, h)
 			if e.OnAfterWrite != nil {
 				err = e.OnAfterWrite(ctx, h)
@@ -333,7 +334,7 @@ func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 					return err
 				}
 				encoded := key.Encode()
-				h.id = encoded
+				h.Id = encoded
 				if e.OnAfterWrite != nil {
 					err = e.OnAfterWrite(ctx, h)
 				}

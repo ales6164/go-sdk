@@ -2,8 +2,9 @@ package sdk
 
 import (
 	"errors"
-	"github.com/asaskevich/govalidator"
 	"net/http"
+
+	"github.com/asaskevich/govalidator"
 )
 
 var userEntity *Entity
@@ -223,7 +224,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, profileKey, err := ProfileEntity.NewKey(ctx, d.id)
+	ctx, profileKey, err := ProfileEntity.NewKey(ctx, d.Id)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
@@ -240,7 +241,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		data[name] = value
 	}
 
-	err = ctx.NewUserToken(d.id, Role(d.Get(ctx, "role").(string)))
+	err = ctx.NewUserToken(d.Id, Role(d.Get(ctx, "role").(string)))
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
@@ -282,7 +283,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, profileKey, err := ProfileEntity.NewKey(ctx, d.id)
+	ctx, profileKey, err := ProfileEntity.NewKey(ctx, d.Id)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return
@@ -296,7 +297,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	var data = d.Output(ctx)
 
-	err = ctx.NewUserToken(d.id, Role(d.Get(ctx, "role").(string)))
+	err = ctx.NewUserToken(d.Id, Role(d.Get(ctx, "role").(string)))
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusInternalServerError)
 		return

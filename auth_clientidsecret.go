@@ -2,10 +2,11 @@ package sdk
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/asaskevich/govalidator"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/mail"
-	"net/http"
 )
 
 var clientIdSecret = &Entity{
@@ -77,7 +78,7 @@ func NewClientRequest(a *SDK) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = sendClientSecret(ctx, a.AppOptions.AdminEmail, holder.id, secret)
+		err = sendClientSecret(ctx, a.AppOptions.AdminEmail, holder.Id, secret)
 		if err != nil {
 			ctx.PrintError(w, err, http.StatusInternalServerError)
 			return
@@ -108,12 +109,12 @@ func IssueClientToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if holder.Get(ctx,"secret").(string) != formHolder.GetInput("clientSecret").(string) {
+	if holder.Get(ctx, "secret").(string) != formHolder.GetInput("clientSecret").(string) {
 		ctx.PrintError(w, ErrNotAuthorized, http.StatusUnauthorized)
 		return
 	}
 
-	err = ctx.NewUserToken(holder.id, APIClientRole)
+	err = ctx.NewUserToken(holder.Id, APIClientRole)
 	if err != nil {
 		ctx.PrintError(w, err, http.StatusUnauthorized)
 		return

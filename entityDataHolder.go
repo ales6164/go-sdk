@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"google.golang.org/appengine/datastore"
 	"strings"
 	"time"
+
+	"google.golang.org/appengine/datastore"
 )
 
 // PreparedEntity data holder
@@ -17,7 +18,7 @@ type EntityDataHolder struct {
 	isNew             bool
 	keepExistingValue bool // turn this true when receiving old data from database; used for editing existing entity
 
-	id    string                 // saved during datastore operations and returned on output
+	Id    string                 // saved during datastore operations and returned on output
 	data  Data                   // this can be edited by load/save, and conditionally with appendField functions
 	input map[string]interface{} // this can be edited by load/save, and conditionally with appendField functions
 }
@@ -181,11 +182,11 @@ func flatOutput(id string, data Data) map[string]interface{} {
 }
 
 func (e *EntityDataHolder) Output(ctx Context) map[string]interface{} {
-	return output(ctx, e.id, e.data, true)
+	return output(ctx, e.Id, e.data, true)
 }
 
 func (e *EntityDataHolder) FlatOutput() map[string]interface{} {
-	return flatOutput(e.id, e.data)
+	return flatOutput(e.Id, e.data)
 }
 
 func (e *EntityDataHolder) JSON(ctx Context) (string, error) {
