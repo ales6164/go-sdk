@@ -39,6 +39,21 @@ func (e *Entity) handleGet() func(w http.ResponseWriter, r *http.Request) {
 
 		encodedKey := vars["encodedKey"]
 
+		slug := r.FormValue("slug")
+		if len(slug) > 0 {
+			filter := EntityQueryFilter{
+				Name:     "slug",
+				Operator: "=",
+				Value:    encodedKey,
+			}
+
+			dataHolder, err := e.Query(ctx, "", 1, 0, filter)
+			if err == nil && len(dataHolder) > 0 {
+				ctx.Print(w, dataHolder[0].Output(ctx))
+				return
+			}
+		}
+
 		ctx, key, err := e.DecodeKey(ctx, encodedKey)
 		if err != nil {
 			ctx.PrintError(w, err, http.StatusBadRequest)
