@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
+	"regexp"
+	"time"
+
 	"github.com/asaskevich/govalidator"
 	"golang.org/x/net/context"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/delay"
 	"google.golang.org/appengine/log"
-	"reflect"
-	"regexp"
-	"time"
-	"net/http"
 )
 
 type Entity struct {
@@ -408,8 +408,6 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 				if err != nil {
 					return h, err
 				}
-			} else if err != http.ErrMissingFile {
-				return h, err
 			}
 		}
 		/*c.r.ParseMultipartForm(32 << 20)
@@ -433,7 +431,7 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 						return h, err
 					}
 
-					*//*log.Infof(c.Context, "Appending file url '%s' value: %s", name, url)*//*
+		*/ /*log.Infof(c.Context, "Appending file url '%s' value: %s", name, url)*/ /*
 
 					err = h.appendValue(name, "https://storage.googleapis.com/"+bucketName+"/"+url, Low)
 					if err != nil {
