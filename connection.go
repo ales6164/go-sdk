@@ -134,6 +134,7 @@ func (e *Entity) Delete(ctx Context, key *datastore.Key) error {
 
 func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
 	var err error
+	var success bool
 	if ctx.HasScope(e, ScopeAdd) {
 		if !key.Incomplete() {
 			err = datastore.RunInTransaction(ctx.Context, func(tc context.Context) error {
@@ -152,10 +153,7 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 						}
 						encoded := key.Encode()
 						h.Id = encoded
-						e.PutToIndexes(tc, encoded, h)
-						if e.OnAfterWrite != nil {
-							err = e.OnAfterWrite(ctx, h)
-						}
+						success = true
 						return err
 					}
 					return err
@@ -177,11 +175,16 @@ func (e *Entity) Add(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 			}
 			encoded := key.Encode()
 			h.Id = encoded
-			e.PutToIndexes(ctx.Context, encoded, h)
+			success = true
+		}
+
+		if success {
+			e.PutToIndexes(ctx.Context, h.Id, h)
 			if e.OnAfterWrite != nil {
 				err = e.OnAfterWrite(ctx, h)
 			}
 		}
+
 		return key, err
 	}
 	return key, ErrNotAuthorized
@@ -216,7 +219,7 @@ func (e *Entity) Put(ctx Context, key *datastore.Key, h *EntityDataHolder) (*dat
 
 // Checks if the key is incomplete; if not it tries retrieving the entity and then copying values to the existing entity
 // otherwise it adds a new entity
-func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
+/* func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
 	var err error
 
 	if key.Incomplete() {
@@ -302,13 +305,14 @@ func (e *Entity) Post(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 	}
 
 	return key, ErrNotAuthorized
-}
+} */
 
 // currently it only check if entity exists and rewrites it
 func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*datastore.Key, error) {
 	var err error
 	if ctx.HasScope(e, ScopeEdit) {
 		if !key.Incomplete() {
+			var success bool
 			err = datastore.RunInTransaction(ctx.Context, func(tc context.Context) error {
 
 				h.keepExistingValue = true // important!
@@ -335,11 +339,16 @@ func (e *Entity) Edit(ctx Context, key *datastore.Key, h *EntityDataHolder) (*da
 				}
 				encoded := key.Encode()
 				h.Id = encoded
+				success = true
+				return err
+			}, nil)
+
+			if success {
+				e.PutToIndexes(ctx.Context, h.Id, h)
 				if e.OnAfterWrite != nil {
 					err = e.OnAfterWrite(ctx, h)
 				}
-				return err
-			}, nil)
+			}
 		} else {
 			return key, ErrKeyIncomplete
 		}
