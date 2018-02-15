@@ -78,7 +78,10 @@ func save(ctx Context, name string) (string, error) {
 
 	fileMultipart, fileHeader, err := ctx.r.FormFile(name)
 	if err != nil {
-		return p, err
+		fileMultipart, fileHeader, err = ctx.r.FormFile("file")
+		if err != nil {
+			return p, err
+		}
 	}
 	defer fileMultipart.Close()
 
