@@ -27,8 +27,6 @@ type Field struct {
 	IsLng      bool   `json:"isLng"`
 
 	Type FieldType `json:"type"` // for special backend functions; file - saves multipart file and returns url
-	// todo: search
-	SearchType SearchType `json:"type"` // enables search if set
 
 	Entity string `json:"-"`      // if set, value should be encoded entity key
 	Lookup bool   `json:"lookup"` // if true, looks up entity value on output

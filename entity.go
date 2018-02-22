@@ -317,7 +317,10 @@ func (e *Entity) AddIndex(dd *DocumentDefinition) {
 }
 
 var putToIndex = delay.Func(RandStringBytesMaskImprSrc(16), func(ctx context.Context, dd DocumentDefinition, id string, data Data) {
-	dd.Put(ctx, id, flatOutput(id, data))
+	err := dd.Put(ctx, id, flatOutput(id, data))
+	if err != nil {
+		log.Errorf(ctx, "%v", err.Error())
+	}
 })
 var removeFromIndex = delay.Func(RandStringBytesMaskImprSrc(16), func(ctx context.Context, dd DocumentDefinition) {
 	// do something expensive!
