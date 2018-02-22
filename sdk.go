@@ -7,6 +7,8 @@ import (
 	"github.com/gorilla/sessions"
 	"golang.org/x/net/context"
 	"google.golang.org/appengine/datastore"
+	"encoding/gob"
+	"google.golang.org/appengine"
 )
 
 type SDK struct {
@@ -28,6 +30,10 @@ type Config struct {
 
 type MyServer struct {
 	h *mux.Router
+}
+
+func init() {
+	gob.Register(appengine.GeoPoint{})
 }
 
 var signingKey []byte

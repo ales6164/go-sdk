@@ -13,6 +13,8 @@ import (
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/delay"
 	"google.golang.org/appengine/log"
+	"google.golang.org/appengine"
+	"strconv"
 )
 
 type Entity struct {
@@ -22,6 +24,10 @@ type Entity struct {
 
 	fields map[string]*Field
 	Fields []*Field `json:"fields"`
+
+	hasGeo   bool
+	latField *Field
+	lngField *Field
 
 	// URL function or options struct? We might need some other options in the future
 	Render Render
@@ -221,6 +227,16 @@ func (e *Entity) AddField(field *Field) {
 
 	e.fields[field.datastoreFieldName] = field
 
+	if field.IsLat {
+		e.latField = field
+	}
+	if field.IsLng {
+		e.lngField = field
+	}
+	if e.lngField != nil && e.latField != nil {
+		e.hasGeo = true
+	}
+
 	if field.IsRequired {
 		e.requiredFields = append(e.requiredFields, field)
 	}
@@ -309,6 +325,29 @@ var removeFromIndex = delay.Func(RandStringBytesMaskImprSrc(16), func(ctx contex
 
 func (e *Entity) PutToIndexes(ctx context.Context, id string, data *EntityDataHolder) {
 	for _, dd := range e.indexes {
+		if e.hasGeo {
+			latStr := data.data[e.latField]
+			lngStr := data.data[e.lngField]
+
+			if latStr != nil && lngStr != nil {
+				lat, err := strconv.ParseFloat(latStr.(string), 64)
+				if err != nil {
+					log.Errorf(ctx, "%v", err.Error())
+					return
+				}
+				lng, err := strconv.ParseFloat(lngStr.(string), 64)
+				if err != nil {
+					log.Errorf(ctx, "%v", err.Error())
+					return
+				}
+
+				geopoint := &appengine.GeoPoint{lat, lng}
+				data.data[&Field{
+					Name: "geopoint",
+				}] = geopoint
+			}
+		}
+
 		err := putToIndex.Call(ctx, *dd, id, data.data)
 		if err != nil {
 			log.Errorf(ctx, "%v", err.Error())
@@ -431,7 +470,7 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 						return h, err
 					}
 
-		*/ /*log.Infof(c.Context, "Appending file url '%s' value: %s", name, url)*/ /*
+		*//*log.Infof(c.Context, "Appending file url '%s' value: %s", name, url)*//*
 
 					err = h.appendValue(name, "https://storage.googleapis.com/"+bucketName+"/"+url, Low)
 					if err != nil {

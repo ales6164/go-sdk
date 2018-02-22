@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"google.golang.org/appengine/datastore"
 )
 
 func (a *SDK) EnableEntitySearchAPI(e *Entity, index *DocumentDefinition, fieldPosition []string) {
@@ -16,10 +17,44 @@ func (e *Entity) handleSearch(dd *DocumentDefinition, fieldPosition []string) fu
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := NewContext(r)
 
-		results, err := indexQuery(ctx.Context, dd, r.URL.Query())
+		q := r.URL.Query()
+		fetch := q.Get("fetch")
+
+		results, err := indexQuery(ctx.Context, dd, q)
 		if err != nil {
 			ctx.PrintError(w, err, http.StatusInternalServerError)
 			return
+		}
+
+		if len(fetch) > 0 {
+			var keys []*datastore.Key
+			var multiData []*EntityDataHolder
+			for _, item := range results {
+				if fetchEncodedIdField, ok := item[fetch]; ok {
+					key, err := datastore.DecodeKey(fetchEncodedIdField.(string))
+					if err != nil {
+						ctx.PrintError(w, err, http.StatusInternalServerError)
+						return
+					}
+					keys = append(keys, key)
+					multiData = append(multiData, e.New(ctx))
+				}
+			}
+
+			results = []map[string]interface{}{}
+
+			if len(keys) > 0 {
+				err := datastore.GetMulti(ctx.Context, keys, multiData)
+				if err != nil {
+					ctx.PrintError(w, err, http.StatusInternalServerError)
+					return
+				}
+
+				for i, data := range multiData {
+					data.Id = keys[i].Encode()
+					results = append(results, data.Output(ctx))
+				}
+			}
 		}
 
 		ctx.Print(w, map[string]interface{}{
@@ -30,8 +65,8 @@ func (e *Entity) handleSearch(dd *DocumentDefinition, fieldPosition []string) fu
 	}
 }
 
-func indexQuery(ctx context.Context, dd *DocumentDefinition, query url.Values) ([]interface{}, error) {
-	var data []interface{}
+func indexQuery(ctx context.Context, dd *DocumentDefinition, query url.Values) ([]map[string]interface{}, error) {
+	var data []map[string]interface{}
 
 	index, err := search.Open(dd.Name)
 	if err != nil {

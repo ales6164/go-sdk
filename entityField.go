@@ -23,13 +23,15 @@ type Field struct {
 	Name       string `json:"name"`
 	NoEdits    bool   `json:"noEdits"` // default true
 	IsRequired bool   `json:"isRequired"`
+	IsLat      bool   `json:"isLat"`
+	IsLng      bool   `json:"isLng"`
 
 	Type FieldType `json:"type"` // for special backend functions; file - saves multipart file and returns url
 	// todo: search
-	SearchType SearchType  `json:"type"`  // enables search if set
+	SearchType SearchType `json:"type"` // enables search if set
 
 	Entity string `json:"-"`      // if set, value should be encoded entity key
-	Lookup bool    `json:"lookup"` // if true, looks up entity value on output
+	Lookup bool   `json:"lookup"` // if true, looks up entity value on output
 
 	DefaultValue interface{}                   `json:"defaultValue"`
 	ValueFunc    func() interface{}            `json:"-"`
@@ -56,7 +58,7 @@ type FieldType string
 type Meta map[string]interface{}
 
 const (
-	FileType FieldType = "file"
+	FileType  FieldType = "file"
 	ImageType FieldType = "image"
 	/*ImageType FieldType = "image"
 	TextType FieldType = "text"
