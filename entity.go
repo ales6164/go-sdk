@@ -8,12 +8,12 @@ import (
 	"regexp"
 	"time"
 
+	"context"
 	"github.com/asaskevich/govalidator"
-	"golang.org/x/net/context"
+	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/delay"
-	"google.golang.org/appengine/log"
-	"google.golang.org/appengine"
+	"log"
 	"strconv"
 )
 
@@ -319,7 +319,7 @@ func (e *Entity) AddIndex(dd *DocumentDefinition) {
 var putToIndex = delay.Func(RandStringBytesMaskImprSrc(16), func(ctx context.Context, dd DocumentDefinition, id string, data Data) {
 	err := dd.Put(ctx, id, flatOutput(id, data))
 	if err != nil {
-		log.Errorf(ctx, "%v", err.Error())
+		log.Printf("%v", err.Error())
 	}
 })
 var removeFromIndex = delay.Func(RandStringBytesMaskImprSrc(16), func(ctx context.Context, dd DocumentDefinition) {
@@ -335,12 +335,12 @@ func (e *Entity) PutToIndexes(ctx context.Context, id string, data *EntityDataHo
 			if latStr != nil && lngStr != nil {
 				lat, err := strconv.ParseFloat(latStr.(string), 64)
 				if err != nil {
-					log.Errorf(ctx, "%v", err.Error())
+					log.Printf("%v", err.Error())
 					return
 				}
 				lng, err := strconv.ParseFloat(lngStr.(string), 64)
 				if err != nil {
-					log.Errorf(ctx, "%v", err.Error())
+					log.Printf("%v", err.Error())
 					return
 				}
 
@@ -353,7 +353,7 @@ func (e *Entity) PutToIndexes(ctx context.Context, id string, data *EntityDataHo
 
 		err := putToIndex.Call(ctx, *dd, id, data.data)
 		if err != nil {
-			log.Errorf(ctx, "%v", err.Error())
+			log.Printf("%v", err.Error())
 		}
 	}
 }
@@ -473,7 +473,7 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 						return h, err
 					}
 
-		*//*log.Infof(c.Context, "Appending file url '%s' value: %s", name, url)*//*
+		*/ /*log.Infof(c.Context, "Appending file url '%s' value: %s", name, url)*/ /*
 
 					err = h.appendValue(name, "https://storage.googleapis.com/"+bucketName+"/"+url, Low)
 					if err != nil {

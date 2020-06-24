@@ -1,6 +1,6 @@
 package sdk
 
-import "google.golang.org/appengine/log"
+import "log"
 
 //type role map[Role]map[Scope]bool
 
@@ -16,7 +16,7 @@ const (
 )
 
 func (c Context) HasScope(e *Entity, scope Scope) bool {
-	log.Debugf(c.Context, "HasScope: Entity %s, Scope %v", e.Name, scope)
+	log.Printf("HasScope: Entity %s, Scope %v", e.Name, scope)
 
 	if c.scopes != nil {
 		if s, ok := c.scopes[scope]; ok {
@@ -25,7 +25,7 @@ func (c Context) HasScope(e *Entity, scope Scope) bool {
 	}
 
 	if role, ok := e.Rules[c.Role]; ok {
-		log.Debugf(c.Context, "HasScope: Role %s, Rule: %v", c.Role, role)
+		log.Printf("HasScope: Role %s, Rule: %v", c.Role, role)
 		if s, ok := role[scope]; ok {
 			return s
 		}

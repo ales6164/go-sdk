@@ -1,12 +1,12 @@
 package sdk
 
 import (
-	"golang.org/x/net/context"
+	"context"
+	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/search"
 	"net/http"
 	"net/url"
 	"strconv"
-	"google.golang.org/appengine/datastore"
 )
 
 func (a *SDK) EnableEntitySearchAPI(e *Entity, index *DocumentDefinition, fieldPosition []string) {

@@ -3,8 +3,8 @@ package sdk
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
-	"google.golang.org/appengine/log"
 )
 
 const responseKey = "result"
@@ -24,7 +24,7 @@ func (c *Context) Print(w http.ResponseWriter, response interface{}) {
 }
 
 func (c *Context) PrintError(w http.ResponseWriter, err error, code int) {
-	log.Errorf(c.Context, "Internal Error: %v", err)
+	log.Printf("Internal Error: %v", err)
 	write(w, c.Token, code, err.Error(), responseKey, nil)
 }
 

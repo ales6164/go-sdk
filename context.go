@@ -4,11 +4,10 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	gctx "github.com/gorilla/context"
 	"golang.org/x/net/context"
-	"google.golang.org/appengine"
+	"google.golang.org/appengine/datastore"
 	"io/ioutil"
 	"net/http"
 	"time"
-	"google.golang.org/appengine/datastore"
 )
 
 type Context struct {
@@ -41,7 +40,7 @@ func NewContext(r *http.Request) Context {
 
 	return Context{
 		r:               r,
-		Context:         appengine.NewContext(r),
+		Context:         r.Context(),
 		IsAuthenticated: isAuthenticated,
 		Role:            userRole,
 		User:            userKey,
@@ -96,7 +95,7 @@ func getUser(r *http.Request) (bool, Role, string, Token, error) {
 				return isAuthenticated, Role(userRoleKey), userKey, renewedToken, ErrIllegalAction
 			} else if exp, ok := claims["exp"].(float64); ok {
 				// check if it's less than a week old
-				if time.Now().Unix()-int64(exp) < time.Now().Add(time.Hour * 24 * 7).Unix() {
+				if time.Now().Unix()-int64(exp) < time.Now().Add(time.Hour*24*7).Unix() {
 					if userKey, ok := claims["sub"].(string); ok {
 						if userRoleKey, ok := claims["rol"].(string); ok {
 							renewedToken, err = newToken(userKey, Role(userRoleKey))

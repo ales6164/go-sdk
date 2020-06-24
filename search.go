@@ -1,7 +1,7 @@
 package sdk
 
 import (
-	"golang.org/x/net/context"
+	"context"
 	"google.golang.org/appengine/search"
 )
 
@@ -12,7 +12,6 @@ type Document struct {
 }
 
 type SearchType struct {
-
 }
 
 func (d *Document) AddFields(f ...search.Field) error {
