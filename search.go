@@ -12,7 +12,6 @@ type Document struct {
 }
 
 type SearchType struct {
-
 }
 
 func (d *Document) AddFields(f ...search.Field) error {
@@ -121,7 +120,7 @@ func (dd *DocumentDefinition) Assemble(id string, data map[string]interface{}) D
 	document.AddFields(f)
 
 	for _, name := range dd.Fields {
-		var val interface{} = data[name]
+		var val = data[name]
 
 		if val != nil {
 
@@ -144,7 +143,7 @@ func (dd *DocumentDefinition) Assemble(id string, data map[string]interface{}) D
 	}
 
 	for _, name := range dd.Facets {
-		var val interface{} = data[name]
+		var val = data[name]
 
 		if val != nil {
 

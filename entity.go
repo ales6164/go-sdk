@@ -10,10 +10,10 @@ import (
 
 	"github.com/asaskevich/govalidator"
 	"golang.org/x/net/context"
+	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/delay"
 	"google.golang.org/appengine/log"
-	"google.golang.org/appengine"
 	"strconv"
 )
 
@@ -473,7 +473,7 @@ func (e *Entity) FromForm(c Context) (*EntityDataHolder, error) {
 						return h, err
 					}
 
-		*//*log.Infof(c.Context, "Appending file url '%s' value: %s", name, url)*//*
+		*/ /*log.Infof(c.Context, "Appending file url '%s' value: %s", name, url)*/ /*
 
 					err = h.appendValue(name, "https://storage.googleapis.com/"+bucketName+"/"+url, Low)
 					if err != nil {

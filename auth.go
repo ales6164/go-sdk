@@ -3,8 +3,8 @@ package sdk
 import (
 	"errors"
 	"github.com/dgrijalva/jwt-go"
-	"time"
 	"net/http"
+	"time"
 )
 
 func AuthMiddleware(signingKey []byte) *JWTMiddleware {
@@ -45,12 +45,12 @@ func newToken(userKey string, userRole Role) (Token, error) {
 
 	var exp = time.Now().Add(time.Hour * 12).Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"aud":  "api",
-		"nbf":  time.Now().Add(-time.Minute).Unix(),
-		"exp":  exp,
-		"iat":  time.Now().Unix(),
-		"iss":  "sdk",
-		"sub":  userKey,
+		"aud": "api",
+		"nbf": time.Now().Add(-time.Minute).Unix(),
+		"exp": exp,
+		"iat": time.Now().Unix(),
+		"iss": "sdk",
+		"sub": userKey,
 		"rol": userRole,
 	})
 
@@ -63,14 +63,14 @@ func newToken(userKey string, userRole Role) (Token, error) {
 }
 
 // Deprecated
-func (c *Context) NewAnonymousToken() (error) {
+func (c *Context) NewAnonymousToken() error {
 	var exp = time.Now().Add(time.Hour * 12).Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"aud":  "api",
-		"nbf":  time.Now().Add(-time.Minute).Unix(),
-		"exp":  exp,
-		"iat":  time.Now().Unix(),
-		"iss":  "sdk",
+		"aud": "api",
+		"nbf": time.Now().Add(-time.Minute).Unix(),
+		"exp": exp,
+		"iat": time.Now().Unix(),
+		"iss": "sdk",
 	})
 
 	signed, err := token.SignedString(signingKey)

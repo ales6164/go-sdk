@@ -112,7 +112,7 @@ func output(ctx Context, id string, data Data, cacheLookup bool) map[string]inte
 						multiples = append(multiples, field.GroupName)
 					}
 
-					var groupField map[string]interface{} = output[field.GroupName].(map[string]interface{})
+					var groupField = output[field.GroupName].(map[string]interface{})
 
 					if groupField["LastProp"] != field.Name {
 						groupField["LastPropCount"] = 0

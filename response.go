@@ -3,8 +3,8 @@ package sdk
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"google.golang.org/appengine/log"
+	"net/http"
 )
 
 const responseKey = "result"
